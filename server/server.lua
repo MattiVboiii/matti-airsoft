@@ -11,14 +11,15 @@ local function GetPlayerName(source)
     end
 end
 
-RegisterServerEvent('matti-airsoft:stunNotify')
-AddEventHandler('matti-airsoft:stunNotify', function(stunnedPlayerName)
+-- NOT WORKING PROPERLY ATM
+RegisterServerEvent('matti-airsoft:hitNotify')
+AddEventHandler('matti-airsoft:hitNotify', function(hitPlayerName)
     local _source = source
     local playerName = GetPlayerName(_source)
     
     if Config.Debug then
         -- Print debug information to the server console
-        print(playerName .. " has stunned " .. stunnedPlayerName .. "!")
+        print(playerName .. " has hit " .. hitPlayerName .. "!")
     end
 end)
 
@@ -69,7 +70,11 @@ AddEventHandler('matti-airsoft:removeItem', function(itemName, amount)
     local _source = source
     local player = QBCore.Functions.GetPlayer(_source)
     if player then
-        player.Functions.RemoveItem(itemName, amount)
-        TriggerClientEvent('inventory:client:ItemBox', _source, QBCore.Shared.Items[itemName], 'remove')
+        local item = player.Functions.GetItemByName(itemName)
+        if item then
+            local removeAmount = math.min(item.amount, amount) -- Remove only as much as the player has
+            player.Functions.RemoveItem(itemName, removeAmount)
+            TriggerClientEvent('inventory:client:ItemBox', _source, QBCore.Shared.Items[itemName], 'remove')
+        end
     end
 end)
