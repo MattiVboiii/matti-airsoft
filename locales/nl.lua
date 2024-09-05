@@ -1,6 +1,9 @@
 local Translations = {
     error = {
-        unknown_player = "Onbekende speler"
+        unknown_player = 'Onbekende Speler',
+    },
+    menu = {
+        choose_loadout = 'Kies Loadout',
     },
     zone = {
         entered = 'Je bent nu in de Airsoft Arena.',

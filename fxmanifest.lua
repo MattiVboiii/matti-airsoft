@@ -5,6 +5,8 @@ author 'MattiVboiii'
 description 'Simple & basic airsoft script'
 version '0.0.0'
 
+lua54 'yes'
+
 client_scripts {
     'client/client.lua',
     '@PolyZone/client.lua',
@@ -17,5 +19,10 @@ server_scripts {
 shared_scripts {
     'config.lua',
     '@qb-core/shared/locale.lua',
-    'locales/*.lua'
+    'locales/*.lua',
+}
+
+dependencies {
+    'qb-core',
+    'qb-target',
 }
