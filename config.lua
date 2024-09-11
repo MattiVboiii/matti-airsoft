@@ -53,7 +53,7 @@ Config.AirsoftBlip = {
 -- Define loadouts with weapons, ammo, and their labels
 Config.Loadouts = {
     {
-        name = '1️⃣ Loadout 1',
+        name = 'Loadout 1',
         weapons = {
             { name = 'weapon_airsoftglock20', label = 'Pistol' },
         },
@@ -62,7 +62,7 @@ Config.Loadouts = {
         }
     },
     {
-        name = '2️⃣ Loadout 2',
+        name = 'Loadout 2',
         weapons = {
             { name = 'weapon_airsoftm4', label = 'Assault Rifle' },
         },
@@ -71,7 +71,7 @@ Config.Loadouts = {
         }
     },
     {
-        name = '3️⃣ Loadout 3',
+        name = 'Loadout 3',
         weapons = {
             { name = 'weapon_airsoftr870', label = 'Shotgun' },
         },

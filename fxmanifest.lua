@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'MattiVboiii'
 description 'Simple & basic airsoft script'
-version '1.0.0'
+version '1.0.1'
 
 lua54 'yes'
 

@@ -87,6 +87,7 @@ local function HandleLoadoutSelection(loadout)
         TriggerServerEvent('matti-airsoft:giveItem', ammo.name, ammo.amount)
     end
     currentLoadout = loadout
+    QBCore.Functions.Notify(Lang:t('notifications.loadout_selected', {loadoutName = loadout.name}), 'success')
     TeleportToRandomPosition()
 end
 
@@ -114,13 +115,13 @@ end
 -- Function to handle entering or exiting airsoft zone
 local function HandleZoneEntry(isPointInside)
     if isPointInside then
-        QBCore.Functions.Notify(Lang:t('zone.entered'), 'success')
+        QBCore.Functions.Notify(Lang:t('notifications.entered'), 'success')
         if Config.Debug then
             TriggerServerEvent('matti-airsoft:debugZoneEntry', GetPlayerName(), 'entered')
         end
         CheckHitStatus()
     else
-        QBCore.Functions.Notify(Lang:t('zone.exited'), 'error')
+        QBCore.Functions.Notify(Lang:t('notifications.exited'), 'error')
         if Config.Debug then
             TriggerServerEvent('matti-airsoft:debugZoneEntry', GetPlayerName(), 'exited')
         end
@@ -171,12 +172,12 @@ AddEventHandler('matti-airsoft:openLoadoutMenu', function()
             weaponsList = weaponsList .. weapon.label .. '\n'
         end
         for _, ammo in ipairs(loadout.ammo) do
-            ammoList = ammoList .. ' (' .. ammo.amount .. ' clips)\n'
+            ammoList = ammoList .. ' (' .. ammo.amount .. ' Lang:t('ammo.clips')\n'
         end
 
         table.insert(loadoutMenu, {
             header = loadout.name,
-            txt = 'Includes:\n' .. weaponsList .. ammoList,
+            txt = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
             params = {
                 event = 'matti-airsoft:selectLoadout',
                 args = { loadout = loadout }
@@ -220,6 +221,22 @@ AddEventHandler('matti-airsoft:exitArena', function()
     RemoveLoadout()
     RestoreInventory()
     SetEntityCoords(PlayerPedId(), Config.ReturnLocation)
+end)
+
+RegisterNetEvent('matti-airsoft:checkIfInArena')
+AddEventHandler('matti-airsoft:checkIfInArena', function(adminId)
+    local isInArena = airsoftZone:isPointInside(GetEntityCoords(PlayerPedId()))
+    TriggerServerEvent('matti-airsoft:reportArenaStatus', adminId, isInArena)
+end)
+
+RegisterNetEvent('matti-airsoft:forceExitArena')
+AddEventHandler('matti-airsoft:forceExitArena', function()
+    if airsoftZone:isPointInside(GetEntityCoords(PlayerPedId())) then
+        RemoveLoadout()
+        RestoreInventory()
+        SetEntityCoords(PlayerPedId(), Config.ReturnLocation)
+        QBCore.Functions.Notify(Lang:t('notifications.force_exit'), 'error')
+    end
 end)
 
 function RemoveLoadout()

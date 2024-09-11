@@ -8,14 +8,23 @@ local Translations = {
         own_loadout_txt = 'Ga in de arena met je eigen gear',
         random_loadout = 'Random Loadout',
         random_loadout_txt = 'Ga in de arena met een random loadout',
-        exit_arena = 'Verlaat Arena'
-    },
-    zone = {
-        entered = 'Je bent nu in de Airsoft Arena.',
-        exited = 'Je hebt de Airsoft Arena verlaten.',
+        exit_arena = 'Verlaat Arena',
+        includes = 'Omvat:',
     },
     inarena = {
         shot = 'Je bent geraakt en ligt uit het spel!',
+    },
+    command = {
+        description_exitarena = 'Een speler geforceerd de arena uit smijten (Admin Only)',
+        help_exitarena = 'Speler ID',
+        invalid_player_id = 'Ongeldige speler ID.',
+        player_removed = 'Speler is geforceerd verwijderd uit de arena.',
+        player_not_in_arena = 'Speler bevindt zich niet in de airsoft arena.',
+    },
+    notifications = {
+        entered = 'Je bent nu in de Airsoft Arena.',
+        exited = 'Je hebt de Airsoft Arena verlaten.',
+        force_exit = 'U bent met geforceerd verwijderd uit de airsoft arena.',
     }
 }
 

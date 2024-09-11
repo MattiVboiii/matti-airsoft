@@ -59,3 +59,42 @@ RegisterServerEvent('matti-airsoft:removeItem')
 AddEventHandler('matti-airsoft:removeItem', function(itemName, amount)
     HandlePlayerItem(source, itemName, amount, 'remove')
 end)
+
+QBCore.Commands.Add('exitarena', Lang:t('command.description_exitarena'), {{name = 'id', help = Lang:t('command.help_exitarena')}}, false, function(source, args)
+    local playerId = tonumber(args[1]) or source
+    if playerId then
+        local targetPlayer = QBCore.Functions.GetPlayer(playerId)
+        if targetPlayer then
+            TriggerClientEvent('matti-airsoft:checkIfInArena', playerId, source)
+        else
+            TriggerClientEvent('QBCore:Notify', source, Lang:t('command.invalid_player_id'), 'error')
+        end
+    else
+        TriggerClientEvent('QBCore:Notify', source, Lang:t('command.invalid_player_id'), 'error')
+    end
+end, 'admin')
+
+RegisterNetEvent('matti-airsoft:reportArenaStatus')
+AddEventHandler('matti-airsoft:reportArenaStatus', function(adminId, isInArena)
+    if isInArena then
+        TriggerClientEvent('matti-airsoft:forceExitArena', source)
+        TriggerClientEvent('QBCore:Notify', adminId, Lang:t('command.player_removed'), 'success')
+    else
+        TriggerClientEvent('QBCore:Notify', adminId, Lang:t('command.player_not_in_arena'), 'error')
+    end
+end)
+
+PerformHttpRequest('https://raw.githubusercontent.com/MattiVboiii/matti-airsoft/main/VERSION', function(Error, OnlineVersion, Header)
+    OfflineVersion = LoadResourceFile('matti-airsoft', 'VERSION')
+    if Error ~= 200 then
+        error("\x1b[31m[ERROR]\x1b[97m There was an error, it is: HTTP" .. Error .. "\x1b[0m")
+        return 0
+    else
+    if OnlineVersion <= OfflineVersion then 
+    print('^3 [MAIN]: \x1b[97m You are running the latest version of this script!. \x1b[0m')
+    end
+    if OnlineVersion > OfflineVersion then
+        print('^3 [UPDATE]: \x1b[97m There is a new version of this script available. \x1b[0m')
+    end
+end
+end)
