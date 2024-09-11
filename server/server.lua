@@ -1,80 +1,61 @@
 -- server.lua
 local QBCore = exports['qb-core']:GetCoreObject()
 
--- Utility function to get player name safely
-local function GetPlayerName(source)
-    local player = QBCore.Functions.GetPlayer(source)
-    if player and player.charinfo then
-        return player.charinfo.firstname .. " " .. player.charinfo.lastname
+-- Utility function to get player name
+local function GetPlayerNameById(playerId)
+    local player = QBCore.Functions.GetPlayer(playerId)
+    if player and player.PlayerData.charinfo then
+        return player.PlayerData.charinfo.firstname .. ' ' .. player.PlayerData.charinfo.lastname
     else
-        return "Unknown Player"
+        return 'Unknown Player'
     end
 end
 
--- NOT WORKING PROPERLY ATM
-RegisterServerEvent('matti-airsoft:hitNotify')
-AddEventHandler('matti-airsoft:hitNotify', function(hitPlayerName)
-    local _source = source
-    local playerName = GetPlayerName(_source)
-    
-    if Config.Debug then
-        -- Print debug information to the server console
-        print(playerName .. " has hit " .. hitPlayerName .. "!")
+-- Utility function to handle item addition or removal
+local function HandlePlayerItem(playerId, itemName, amount, action)
+    local player = QBCore.Functions.GetPlayer(playerId)
+    if player then
+        if action == 'add' then
+            player.Functions.AddItem(itemName, amount)
+        elseif action == 'remove' then
+            player.Functions.RemoveItem(itemName, amount)
+        end
+        TriggerClientEvent('inventory:client:ItemBox', playerId, QBCore.Shared.Items[itemName], action)
     end
-end)
+end
 
+-- Utility function to handle weapon removal from player ped
+local function RemoveWeaponFromPlayerPed(playerId, weaponName)
+    local playerPed = GetPlayerPed(playerId)
+    RemoveWeaponFromPed(playerPed, GetHashKey(weaponName))
+end
+
+-- Debugging entry point
 RegisterServerEvent('matti-airsoft:debugZoneEntry')
 AddEventHandler('matti-airsoft:debugZoneEntry', function(playerName, action)
     if Config.Debug then
-        -- Print debug information to the server console
-        print(playerName .. " has " .. action .. " the airsoft zone.")
+        print(playerName .. ' has ' .. action .. ' the airsoft zone.')
     end
 end)
 
--- Handle giving weapons to players
+-- Events for handling items and weapons
 RegisterServerEvent('matti-airsoft:giveWeapon')
 AddEventHandler('matti-airsoft:giveWeapon', function(weaponName)
-    local _source = source
-    local player = QBCore.Functions.GetPlayer(_source)
-    if player then
-        player.Functions.AddItem(weaponName, 1)
-        TriggerClientEvent('inventory:client:ItemBox', _source, QBCore.Shared.Items[weaponName], 'add')
-    end
+    HandlePlayerItem(source, weaponName, 1, 'add')
 end)
 
--- Handle giving items to players
 RegisterServerEvent('matti-airsoft:giveItem')
 AddEventHandler('matti-airsoft:giveItem', function(itemName, amount)
-    local _source = source
-    local player = QBCore.Functions.GetPlayer(_source)
-    if player then
-        player.Functions.AddItem(itemName, amount)
-        TriggerClientEvent('inventory:client:ItemBox', _source, QBCore.Shared.Items[itemName], 'add')
-    end
+    HandlePlayerItem(source, itemName, amount, 'add')
 end)
 
--- Handle removing weapons from players
 RegisterServerEvent('matti-airsoft:removeWeapon')
 AddEventHandler('matti-airsoft:removeWeapon', function(weaponName)
-    local _source = source
-    local player = QBCore.Functions.GetPlayer(_source)
-    if player then
-        player.Functions.RemoveItem(weaponName, 1)
-        TriggerClientEvent('inventory:client:ItemBox', _source, QBCore.Shared.Items[weaponName], 'remove')
-    end
+    HandlePlayerItem(source, weaponName, 1, 'remove')
+    RemoveWeaponFromPlayerPed(source, weaponName)
 end)
 
--- Handle removing items from players
 RegisterServerEvent('matti-airsoft:removeItem')
 AddEventHandler('matti-airsoft:removeItem', function(itemName, amount)
-    local _source = source
-    local player = QBCore.Functions.GetPlayer(_source)
-    if player then
-        local item = player.Functions.GetItemByName(itemName)
-        if item then
-            local removeAmount = math.min(item.amount, amount) -- Remove only as much as the player has
-            player.Functions.RemoveItem(itemName, removeAmount)
-            TriggerClientEvent('inventory:client:ItemBox', _source, QBCore.Shared.Items[itemName], 'remove')
-        end
-    end
+    HandlePlayerItem(source, itemName, amount, 'remove')
 end)
