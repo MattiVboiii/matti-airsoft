@@ -15,7 +15,7 @@ Simple & basic airsoft script made for QBCore
 ## Preview
 Loadouts:
 
-![image](https://github.com/user-attachments/assets/92ad8120-0b46-44b9-8d94-3e2d992f868d)
+![image](https://github.com/user-attachments/assets/52f2d3a1-1ece-49a8-9b3b-a2d61a442cdf)
 
 Configurable Entry/Exit ped:
 
