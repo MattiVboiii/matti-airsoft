@@ -100,7 +100,7 @@ end)
 PerformHttpRequest('https://raw.githubusercontent.com/MattiVboiii/matti-airsoft/main/VERSION', function(Error, OnlineVersion, Header)
     OfflineVersion = LoadResourceFile('matti-airsoft', 'VERSION')
     if Error ~= 200 then
-        error('^3 [ERROR]: There was an error, it is: HTTP' .. Error .. )
+        error('^3 [ERROR]: There was an error, it is: HTTP' .. Error)
         return 0
     else
     if OnlineVersion <= OfflineVersion then 
