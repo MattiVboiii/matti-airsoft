@@ -59,7 +59,8 @@ Config.Loadouts = {
         },
         ammo = {
             { name = 'pistol_ammo', amount = 10 },
-        }
+        },
+        price = 100
     },
     {
         name = 'Loadout 2',
@@ -68,7 +69,8 @@ Config.Loadouts = {
         },
         ammo = {
             { name = 'rifle_ammo', amount = 10 },
-        }
+        },
+        price = 100
     },
     {
         name = 'Loadout 3',
@@ -77,6 +79,7 @@ Config.Loadouts = {
         },
         ammo = {
             { name = 'shotgun_ammo', amount = 10 },
-        }
+        },
+        price = 100
     }
 }

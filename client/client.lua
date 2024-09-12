@@ -79,17 +79,24 @@ end
 
 -- Function to handle loadout selection
 local function HandleLoadoutSelection(loadout)
-    SaveAndClearInventory()
-    for _, weapon in ipairs(loadout.weapons) do
-        TriggerServerEvent('matti-airsoft:giveWeapon', weapon.name)
-    end
-    for _, ammo in ipairs(loadout.ammo) do
-        TriggerServerEvent('matti-airsoft:giveItem', ammo.name, ammo.amount)
-    end
-    currentLoadout = loadout
-    QBCore.Functions.Notify(Lang:t('notifications.loadout_selected', {loadoutName = loadout.name}), 'success')
-    TeleportToRandomPosition()
+    QBCore.Functions.TriggerCallback('matti-airsoft:canAffordLoadout', function(canAfford)
+        if canAfford then
+            SaveAndClearInventory()
+            for _, weapon in ipairs(loadout.weapons) do
+                TriggerServerEvent('matti-airsoft:giveWeapon', weapon.name)
+            end
+            for _, ammo in ipairs(loadout.ammo) do
+                TriggerServerEvent('matti-airsoft:giveItem', ammo.name, ammo.amount)
+            end
+            currentLoadout = loadout
+            QBCore.Functions.Notify('You have selected the "' .. loadout.name .. '" loadout!', 'success')
+            TeleportToRandomPosition()
+        else
+            QBCore.Functions.Notify(Lang:t('notifications.cannot_afford'), 'error')
+        end
+    end, loadout.price)
 end
+
 
 -- Function to check hit status
 local function CheckHitStatus()
@@ -172,11 +179,11 @@ AddEventHandler('matti-airsoft:openLoadoutMenu', function()
             weaponsList = weaponsList .. weapon.label .. '\n'
         end
         for _, ammo in ipairs(loadout.ammo) do
-            ammoList = ammoList .. ' (' .. ammo.amount .. ' Lang:t('ammo.clips')\n'
+            ammoList = ammoList .. ' (' .. ammo.amount .. ' clips)\n'
         end
 
         table.insert(loadoutMenu, {
-            header = loadout.name,
+            header = loadout.name .. ' - $' .. loadout.price,
             txt = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
             params = {
                 event = 'matti-airsoft:selectLoadout',

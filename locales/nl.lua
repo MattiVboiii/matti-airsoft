@@ -25,6 +25,7 @@ local Translations = {
         entered = 'Je bent nu in de Airsoft Arena.',
         exited = 'Je hebt de Airsoft Arena verlaten.',
         force_exit = 'U bent met geforceerd verwijderd uit de airsoft arena.',
+        cannot_afford = 'Je hebt niet genoeg geld voor deze loadout!',
     }
 }
 

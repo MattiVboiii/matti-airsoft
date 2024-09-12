@@ -30,6 +30,19 @@ local function RemoveWeaponFromPlayerPed(playerId, weaponName)
     RemoveWeaponFromPed(playerPed, GetHashKey(weaponName))
 end
 
+QBCore.Functions.CreateCallback('matti-airsoft:canAffordLoadout', function(source, cb, price)
+    local player = QBCore.Functions.GetPlayer(source)
+    if player then
+        if player.Functions.RemoveMoney('bank', price, 'airsoft') then
+            cb(true)
+        else
+            cb(false)
+        end
+    else
+        cb(false)
+    end
+end)
+
 -- Debugging entry point
 RegisterServerEvent('matti-airsoft:debugZoneEntry')
 AddEventHandler('matti-airsoft:debugZoneEntry', function(playerName, action)
@@ -87,14 +100,15 @@ end)
 PerformHttpRequest('https://raw.githubusercontent.com/MattiVboiii/matti-airsoft/main/VERSION', function(Error, OnlineVersion, Header)
     OfflineVersion = LoadResourceFile('matti-airsoft', 'VERSION')
     if Error ~= 200 then
-        error("\x1b[31m[ERROR]\x1b[97m There was an error, it is: HTTP" .. Error .. "\x1b[0m")
+        error('^3 [ERROR]: There was an error, it is: HTTP' .. Error .. )
         return 0
     else
     if OnlineVersion <= OfflineVersion then 
-    print('^3 [MAIN]: \x1b[97m You are running the latest version of this script!. \x1b[0m')
+    print('^3 [LATEST]: ^2 You are running the latest version of this script.')
     end
     if OnlineVersion > OfflineVersion then
-        print('^3 [UPDATE]: \x1b[97m There is a new version of this script available. \x1b[0m')
+        print('^3 [UPDATE]: ^1 There is a new version of this script available!')
+        print('^3 [UPDATE]: ^7 Check out on Github: https://github.com/MattiVboiii/matti-airsoft')
     end
 end
 end)
