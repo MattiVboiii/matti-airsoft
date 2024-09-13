@@ -5,16 +5,17 @@ Simple & basic airsoft script made for QBCore
 
 ## Features
 - 🧍 Peds for Entry/Exit & Debug
-- 🎯 qb-target & qb-menu
+- 🎯 qb-target/ox_target & qb-menu/ox_lib support
 - 🚩 Polyzone/circlezone
 - ♻️ Configurable
-- 🔫 Loadouts (config, random or your own)
+- 🔫 Priced Loadouts (config, random or your own)
 - 🪄 Random spawnlocations
 - 💬 Locales
 
 ## Preview
 Loadouts:
 
+![image](https://github.com/user-attachments/assets/6c69564e-46a1-4adf-9f9b-185a3c610374)
 ![image](https://github.com/user-attachments/assets/52f2d3a1-1ece-49a8-9b3b-a2d61a442cdf)
 
 Configurable Entry/Exit ped:
@@ -60,8 +61,8 @@ This way, police won't be notified of any shots in the arena
 - Adding a leaderboard
 - More gamemodes
 - Finding a way to revive the player after being killed in the arena
+- Adding an ox_lib notify system
+- Adding ox_inventory support
 
 ## Dependencies
-- [qb-target](https://github.com/qbcore-framework/qb-target)
-- [qb-menu](https://github.com/qbcore-framework/qb-menu)
 - [PolyZone](https://github.com/mkafrin/PolyZone)
