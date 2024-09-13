@@ -5,6 +5,10 @@ Config.Debug = false -- Toggle debug mode for the zone, prints & debug peds
 
 Config.TargetSystem = 'qb-target' -- Options: 'qb-target' or 'ox_target'
 
+Config.MenuSystem = 'ox_lib' -- Options: 'qb-menu' or 'ox_lib'
+
+-- Config.NotifySystem = 'qb-core' -- Options: 'qb-core' or 'ox_lib' (DOES NOT WORK, won't do anything, but I'm planning on adding this)
+
 -- Config.InventorySystem = 'qb-inventory' -- Options: 'qb-inventory' or 'ox_inventory' (DOES NOT WORK, won't do anything, but I'm planning on adding this)
 
 Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'

@@ -196,30 +196,74 @@ AddEventHandler('matti-airsoft:openLoadoutMenu', function()
         for _, ammo in ipairs(loadout.ammo) do
             ammoList = ammoList .. ' (' .. ammo.amount .. ' clips)\n'
         end
-
-        table.insert(loadoutMenu, {
-            header = loadout.name .. ' - $' .. loadout.price,
-            txt = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
-            params = {
+        
+        -- Configured loadout options
+        if Config.MenuSystem == 'ox_lib' then
+            table.insert(loadoutMenu, {
+                title = loadout.name,
+                description = 'Includes:\n' .. weaponsList .. ammoList .. '\nPrice: $' .. loadout.price,
                 event = 'matti-airsoft:selectLoadout',
-                args = { loadout = loadout }
-            }
+                args = { loadout = loadout },
+                icon = 'fas fa-crosshairs',
+                iconColor = '#EC213A'
+            })
+        else
+            table.insert(loadoutMenu, {
+                header = loadout.name,
+                txt = 'Includes:\n' .. weaponsList .. ammoList .. '\nPrice: $' .. loadout.price,
+                params = {
+                    event = 'matti-airsoft:selectLoadout',
+                    args = { loadout = loadout }
+                }
+            })
+        end
+    end
+
+    -- Own loadout option
+    if Config.MenuSystem == 'ox_lib' then
+        table.insert(loadoutMenu, {
+            title = Lang:t('menu.own_loadout'),
+            description = Lang:t('menu.own_loadout_txt'),
+            event = 'matti-airsoft:teleportOnly',
+            icon = 'fas fa-box',
+            iconColor = '#33A532'
+        })
+    else
+        table.insert(loadoutMenu, {
+            header = Lang:t('menu.own_loadout'),
+            txt = Lang:t('menu.own_loadout_txt'),
+            params = { event = 'matti-airsoft:teleportOnly' }
         })
     end
 
-    table.insert(loadoutMenu, {
-        header = Lang:t('menu.own_loadout'),
-        txt = Lang:t('menu.own_loadout_txt'),
-        params = { event = 'matti-airsoft:teleportOnly' }
-    })
+    -- Random loadout option
+    if Config.MenuSystem == 'ox_lib' then
+        table.insert(loadoutMenu, {
+            title = Lang:t('menu.random_loadout'),
+            description = Lang:t('menu.random_loadout_txt'),
+            event = 'matti-airsoft:giveRandomGun',
+            icon = 'fas fa-random',
+            iconColor = '#EC213A'
+        })
+    else
+        table.insert(loadoutMenu, {
+            header = Lang:t('menu.random_loadout'),
+            txt = Lang:t('menu.random_loadout_txt'),
+            params = { event = 'matti-airsoft:giveRandomGun' }
+        })
+    end
 
-    table.insert(loadoutMenu, {
-        header = Lang:t('menu.random_loadout'),
-        txt = Lang:t('menu.random_loadout_txt'),
-        params = { event = 'matti-airsoft:giveRandomGun' }
-    })
-
-    exports['qb-menu']:openMenu(loadoutMenu)
+    -- Open menu
+    if Config.MenuSystem == 'ox_lib' then
+        lib.registerContext({
+            id = 'matti_airsoft_loadout_menu',
+            title = Lang:t('menu.choose_loadout'),
+            options = loadoutMenu
+        })
+        lib.showContext('matti_airsoft_loadout_menu')
+    else
+        exports['qb-menu']:openMenu(loadoutMenu)
+    end
 end)
 
 RegisterNetEvent('matti-airsoft:teleportOnly')

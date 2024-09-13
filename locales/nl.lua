@@ -22,9 +22,9 @@ local Translations = {
         player_not_in_arena = 'Speler bevindt zich niet in de airsoft arena.',
     },
     notifications = {
-        entered = 'Je bent nu in de Airsoft Arena.',
+        entered = 'Je hebt de Airsoft Arena betreden.',
         exited = 'Je hebt de Airsoft Arena verlaten.',
-        force_exit = 'U bent met geforceerd verwijderd uit de airsoft arena.',
+        force_exit = 'U bent geforceerd verwijderd uit de airsoft arena.',
         cannot_afford = 'Je hebt niet genoeg geld voor deze loadout!',
     }
 }
