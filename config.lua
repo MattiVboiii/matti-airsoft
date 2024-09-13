@@ -3,11 +3,11 @@ Config = {}
 
 Config.Debug = false -- Toggle debug mode for the zone, prints & debug peds
 
--- Location where the player will be teleported if hit/dead
-Config.ReturnLocation = vector3(2024.36, 2846.33, 50.26)
+Config.TargetSystem = 'qb-target' -- Options: 'qb-target' or 'ox_target'
 
--- Define the zone type (circle or poly)
-Config.ZoneType = 'circle'
+-- Config.InventorySystem = 'qb-inventory' -- Options: 'qb-inventory' or 'ox_inventory' (DOES NOT WORK, won't do anything, but I'm planning on adding this)
+
+Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'
 
 -- Define the airsoft zone configuration
 Config.AirsoftZone = {
@@ -39,6 +39,9 @@ Config.SpawnLocations = {
     vector3(2042.01, 2827.47, 50.44),
     vector3(2066.32, 2762.93, 50.31)
 }
+
+-- Location where the player will be teleported if hit/dead
+Config.ReturnLocation = vector3(2024.36, 2846.33, 50.26)
 
 -- Blip configuration for the airsoft zone
 Config.AirsoftBlip = {

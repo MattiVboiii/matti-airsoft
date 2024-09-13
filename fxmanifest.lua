@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'MattiVboiii'
 description 'Simple & basic airsoft script'
-version '1.0.2'
+version '1.0.3'
 
 lua54 'yes'
 
@@ -21,9 +21,4 @@ shared_scripts {
     'config.lua',
     '@qb-core/shared/locale.lua',
     'locales/*.lua',
-}
-
-dependencies {
-    'qb-core',
-    'qb-target',
 }

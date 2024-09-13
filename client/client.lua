@@ -48,17 +48,32 @@ local function SpawnPed(modelHash, coords, event, icon, label)
     SetEntityInvincible(ped, true)
     SetBlockingOfNonTemporaryEvents(ped, true)
 
-    exports['qb-target']:AddTargetEntity(ped, {
-        options = {
-            {
-                type = 'client',
-                event = event,
-                icon = icon,
-                label = label
+    if Config.TargetSystem == 'qb-target' then
+        exports['qb-target']:AddTargetEntity(ped, {
+            options = {
+                {
+                    type = 'client',
+                    event = event,
+                    icon = icon,
+                    label = label
+                },
             },
-        },
-        distance = 2.5
-    })
+            distance = 2.5
+        })
+    elseif Config.TargetSystem == 'ox_target' then
+        exports.ox_target:addLocalEntity(ped, {
+            {
+                name = 'airsoft_menu',
+                label = label,
+                onSelect = function()
+                    TriggerEvent(event)
+                end,
+                icon = icon,
+                distance = 2.5,
+            }
+        })
+        
+    end
     return ped
 end
 

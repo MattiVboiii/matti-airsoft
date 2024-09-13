@@ -97,18 +97,22 @@ AddEventHandler('matti-airsoft:reportArenaStatus', function(adminId, isInArena)
     end
 end)
 
+-- Version checker
 PerformHttpRequest('https://raw.githubusercontent.com/MattiVboiii/matti-airsoft/main/VERSION', function(Error, OnlineVersion, Header)
     OfflineVersion = LoadResourceFile('matti-airsoft', 'VERSION')
     if Error ~= 200 then
         error('^3 [ERROR]: There was an error, it is: HTTP' .. Error)
         return 0
     else
-    if OnlineVersion <= OfflineVersion then 
-    print('^3 [LATEST]: ^2 You are running the latest version of this script.')
+    if OnlineVersion == OfflineVersion then 
+        print('^3 [LATEST]: ^2 You are running the latest version of this script.')
     end
     if OnlineVersion > OfflineVersion then
         print('^3 [UPDATE]: ^1 There is a new version of this script available!')
         print('^3 [UPDATE]: ^7 Check out on Github: https://github.com/MattiVboiii/matti-airsoft')
+    end
+    if OnlineVersion < OfflineVersion then 
+        print("^3 [FUTURE??]: ^1 Are you living in the future? Because this version of the script has not been released yet...")
     end
 end
 end)
