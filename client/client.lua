@@ -48,27 +48,32 @@ local function SpawnPed(modelHash, coords, event, icon, label)
     SetEntityInvincible(ped, true)
     SetBlockingOfNonTemporaryEvents(ped, true)
 
-    local function SpawnPed(modelHash, coords, event, icon, label)
-    RequestModel(modelHash)
-    while not HasModelLoaded(modelHash) do
-        Wait(100)
+    if Config.TargetSystem == 'qb-target' then
+        exports['qb-target']:AddTargetEntity(ped, {
+            options = {
+                {
+                    type = 'client',
+                    event = event,
+                    icon = icon,
+                    label = label
+                },
+            },
+            distance = 2.5
+        })
+    elseif Config.TargetSystem == 'ox_target' then
+        exports.ox_target:addLocalEntity(ped, {
+            {
+                name = 'airsoft_menu',
+                label = label,
+                onSelect = function()
+                    TriggerEvent(event)
+                end,
+                icon = icon,
+                distance = 2.5,
+            }
+        })
+        
     end
-
-    local ped = CreatePed(4, modelHash, coords.x, coords.y, coords.z - 1.0, coords.w, false, true)
-    FreezeEntityPosition(ped, true)
-    SetEntityInvincible(ped, true)
-    SetBlockingOfNonTemporaryEvents(ped, true)
-
-    exports.ox_target:addLocalEntity(ped, {{
-        name = 'airsoft_ped',
-        icon = icon,
-        label = label,
-        distance = 2.0,
-        debug = false,
-        onSelect = function()
-            TriggerEvent("matti-airsoft:openLoadoutMenu")
-        end
-      }})
     return ped
 end
 
