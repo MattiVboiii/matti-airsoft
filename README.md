@@ -6,6 +6,7 @@ Simple & basic airsoft script made for QBCore
 ## Features
 - 🧍 Peds for Entry/Exit & Debug
 - 🎯 qb-target/ox_target & qb-menu/ox_lib support
+- 🔔 qb-core/ox_lib notification system
 - 🚩 Polyzone/circlezone
 - ♻️ Configurable
 - 🔫 Priced Loadouts (config, random or your own)

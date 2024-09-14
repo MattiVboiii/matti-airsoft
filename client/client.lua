@@ -12,6 +12,43 @@ local function GetPlayerName()
     return player.charinfo.firstname .. ' ' .. player.charinfo.lastname
 end
 
+-- Function to handle notifications
+local function SendNotification(message, type)
+    if Config.NotifySystem == 'ox_lib' then
+        local notificationStyle = {}
+        local icon = 'info-circle'
+        local iconColor = '#FFFFFF'
+
+        if type == 'success' then
+            notificationStyle = { color = '#28A745', ['.description'] = { color = '#E9ECEF' } }
+            icon = 'check-circle'
+            textColor = '#28A745'
+        elseif type == 'error' then
+            notificationStyle = { color = '#DC3545', ['.description'] = { color = '#E9ECEF' } }
+            icon = 'times-circle'
+            textColor = '#DC3545'
+        else
+            notificationStyle = { color = '#F08080', ['.description'] = { color = '#909296' } }
+            icon = 'info-circle'
+            textColor = '#F08080'
+        end
+        
+        lib.notify({
+            title = message,
+            style = notificationStyle,
+            icon = icon,
+            iconColor = textColor,
+        })
+    else
+        QBCore.Functions.Notify(message, type)
+    end
+end
+
+RegisterNetEvent('matti-airsoft:sendNotification')
+AddEventHandler('matti-airsoft:sendNotification', function(message, type)
+    SendNotification(message, type)
+end)
+
 -- Function to save the player's inventory and clear it
 local function SaveAndClearInventory()
     local playerData = QBCore.Functions.GetPlayerData()
@@ -104,10 +141,10 @@ local function HandleLoadoutSelection(loadout)
                 TriggerServerEvent('matti-airsoft:giveItem', ammo.name, ammo.amount)
             end
             currentLoadout = loadout
-            QBCore.Functions.Notify('You have selected the "' .. loadout.name .. '" loadout!', 'success')
+            SendNotification('You have selected the "' .. loadout.name .. '" loadout!', 'success')
             TeleportToRandomPosition()
         else
-            QBCore.Functions.Notify(Lang:t('notifications.cannot_afford'), 'error')
+            SendNotification(Lang:t('notifications.cannot_afford'), 'error')
         end
     end, loadout.price)
 end
@@ -124,7 +161,7 @@ local function CheckHitStatus()
                 if not isHit then
                     isHit = true
                     TriggerServerEvent('matti-airsoft:hitNotify', GetPlayerServerId(PlayerId()), GetPlayerName())
-                    QBCore.Functions.Notify(Lang:t('inarena.shot'))
+                    SendNotification(Lang:t('inarena.shot'))
                     SetEntityCoords(playerPed, Config.ReturnLocation)
                 end
             else
@@ -137,13 +174,13 @@ end
 -- Function to handle entering or exiting airsoft zone
 local function HandleZoneEntry(isPointInside)
     if isPointInside then
-        QBCore.Functions.Notify(Lang:t('notifications.entered'), 'success')
+        SendNotification(Lang:t('notifications.entered'), 'success')
         if Config.Debug then
             TriggerServerEvent('matti-airsoft:debugZoneEntry', GetPlayerName(), 'entered')
         end
         CheckHitStatus()
     else
-        QBCore.Functions.Notify(Lang:t('notifications.exited'), 'error')
+        SendNotification(Lang:t('notifications.exited'), 'error')
         if Config.Debug then
             TriggerServerEvent('matti-airsoft:debugZoneEntry', GetPlayerName(), 'exited')
         end
@@ -301,7 +338,7 @@ AddEventHandler('matti-airsoft:forceExitArena', function()
         RemoveLoadout()
         RestoreInventory()
         SetEntityCoords(PlayerPedId(), Config.ReturnLocation)
-        QBCore.Functions.Notify(Lang:t('notifications.force_exit'), 'error')
+        SendNotification(Lang:t('notifications.force_exit'), 'error')
     end
 end)
 

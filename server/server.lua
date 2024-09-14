@@ -80,10 +80,10 @@ QBCore.Commands.Add('exitarena', Lang:t('command.description_exitarena'), {{name
         if targetPlayer then
             TriggerClientEvent('matti-airsoft:checkIfInArena', playerId, source)
         else
-            TriggerClientEvent('QBCore:Notify', source, Lang:t('command.invalid_player_id'), 'error')
+            TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.invalid_player_id'), 'error')
         end
     else
-        TriggerClientEvent('QBCore:Notify', source, Lang:t('command.invalid_player_id'), 'error')
+        TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.invalid_player_id'), 'error')
     end
 end, 'admin')
 
@@ -91,9 +91,9 @@ RegisterNetEvent('matti-airsoft:reportArenaStatus')
 AddEventHandler('matti-airsoft:reportArenaStatus', function(adminId, isInArena)
     if isInArena then
         TriggerClientEvent('matti-airsoft:forceExitArena', source)
-        TriggerClientEvent('QBCore:Notify', adminId, Lang:t('command.player_removed'), 'success')
+        TriggerClientEvent('matti-airsoft:sendNotification', adminId, Lang:t('command.player_removed'), 'success')
     else
-        TriggerClientEvent('QBCore:Notify', adminId, Lang:t('command.player_not_in_arena'), 'error')
+        TriggerClientEvent('matti-airsoft:sendNotification', adminId, Lang:t('command.player_not_in_arena'), 'error')
     end
 end)
 
