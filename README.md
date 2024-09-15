@@ -46,7 +46,28 @@ I personally use iakkoise's [Softair Map](https://www.gta5-mods.com/maps/ymap-so
 ## Optional guns
 I personally use Localspetsnaz's [Airsoft Guns Pack](https://forum.cfx.re/t/free-standalone-add-on-standalone-add-on-airsoft-guns/5026328) because they don't kill/hurt the player, they stun them.
 
-If you need help adding these guns to your server, hit me up and I'll update the README
+### How to install the optional guns?
+<details>
+<summary>Click here to find out!</summary>
+  <blockquote>
+  1. Insert your custom guns in your server's resources and make they start in your <code>server.cfg</code><br>
+  2. In <code>qb-core/shared/items.lua</code> add this:
+  <pre>weapon_airsoftglock20        = { name = 'weapon_airsoftglock20', label = 'Airsoft Glock 20', weight = 1000, type = 'weapon', ammotype = 'AMMO_PISTOL', image = 'weapon_pistol.png', unique = true, useable = false, description = 'Airsoft Glock 20' },</pre>
+  (do this with every custom gun and change some values)
+  <br><br>
+  3. In <code>qb-core/shared/weapons.lua</code> add this:
+  <pre>[`weapon_airsoftglock20`]        = { name = 'weapon_airsoftglock20', label = 'Airsoft Glock 20', weapontype = 'Pistol', ammotype = 'AMMO_PISTOL', damagereason = 'Hit by a BB' },</pre>
+  (do this with every custom gun and change some values)
+  <br><br>
+  4. In <code>qb-weapons/config.lua</code> add this in <code>Config.DurabiltyMultiplier</code>
+  <pre>weapon_airsoftglock20        = 0.05,</pre>
+  (do this with every custom gun and change some values)
+  <br><br>
+  5. In <code>qb-weapons/client/weapdraw.lua</code> add this
+  <pre>'WEAPON_AIRSOFTGLOCK20',</pre>
+  (do this with every custom gun and change some values)
+</blockquote>
+</details>
 
 But if you decide not to use these guns, then the script is made so if the player is dead, they will also get teleported out of the arena.
 
