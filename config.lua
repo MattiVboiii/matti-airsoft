@@ -45,6 +45,7 @@ Config.SpawnLocations = {
 }
 
 -- Location where the player will be teleported if hit/dead
+Config.TeleportOnHit = true
 Config.ReturnLocation = vector3(2024.36, 2846.33, 50.26)
 
 -- Blip configuration for the airsoft zone
