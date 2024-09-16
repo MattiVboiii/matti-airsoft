@@ -82,9 +82,6 @@ This way, police won't be notified of any shots in the arena
 - Adding a "who killed who" system
 - Adding a leaderboard
 - More gamemodes
-- Finding a way to revive the player after being killed in the arena
-- Adding an ox_lib notify system
-- Adding ox_inventory support
 
 ## Dependencies
 - [PolyZone](https://github.com/mkafrin/PolyZone)
