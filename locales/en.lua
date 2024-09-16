@@ -12,7 +12,8 @@ local Translations = {
         includes = 'Includes:',
     },
     inarena = {
-        shot = 'You have been hit and are out of the game!',
+        shotandout = 'You have been hit and are out of the game!',
+        shot = 'You have been hit!',
     },
     command = {
         description_exitarena = 'Forcefully exit a player from the airsoft arena (Admin Only)',

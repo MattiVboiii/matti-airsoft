@@ -140,6 +140,7 @@ local function HandleLoadoutSelection(loadout)
             for _, ammo in ipairs(loadout.ammo) do
                 TriggerServerEvent('matti-airsoft:giveItem', ammo.name, ammo.amount)
             end
+            SetCurrentPedWeapon(PlayerPedId(), GetHashKey('WEAPON_UNARMED'), true)
             currentLoadout = loadout
             SendNotification('You have selected the "' .. loadout.name .. '" loadout!', 'success')
             TeleportToRandomPosition()
@@ -154,15 +155,22 @@ end
 local function CheckHitStatus()
     Citizen.CreateThread(function()
         while airsoftZone:isPointInside(GetEntityCoords(PlayerPedId())) do
-            Citizen.Wait(100)
+            Wait(100)
             local playerPed = PlayerPedId()
 
             if IsPedBeingStunned(playerPed, 0) or IsEntityDead(playerPed) then
                 if not isHit then
                     isHit = true
-                    TriggerServerEvent('matti-airsoft:hitNotify', GetPlayerServerId(PlayerId()), GetPlayerName())
-                    SendNotification(Lang:t('inarena.shot'))
-                    SetEntityCoords(playerPed, Config.ReturnLocation)
+                    if Config.TeleportOnHit then
+                        SendNotification(Lang:t('inarena.shotandout'))
+                        SetEntityCoords(playerPed, Config.ReturnLocation)
+                    else
+                        SendNotification(Lang:t('inarena.shot'))
+                    end
+                    if IsEntityDead(playerPed) then
+                        Wait(5000) -- Small delay to ensure the player is "isDead" before reviving
+                        TriggerServerEvent('matti-airsoft:revivePlayer', playerId)
+                    end
                 end
             else
                 isHit = false
@@ -237,8 +245,8 @@ AddEventHandler('matti-airsoft:openLoadoutMenu', function()
         -- Configured loadout options
         if Config.MenuSystem == 'ox_lib' then
             table.insert(loadoutMenu, {
-                title = loadout.name,
-                description = 'Includes:\n' .. weaponsList .. ammoList .. '\nPrice: $' .. loadout.price,
+                title = loadout.name .. ' - $' .. loadout.price,
+                description = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
                 event = 'matti-airsoft:selectLoadout',
                 args = { loadout = loadout },
                 icon = 'fas fa-crosshairs',
@@ -246,8 +254,8 @@ AddEventHandler('matti-airsoft:openLoadoutMenu', function()
             })
         else
             table.insert(loadoutMenu, {
-                header = loadout.name,
-                txt = 'Includes:\n' .. weaponsList .. ammoList .. '\nPrice: $' .. loadout.price,
+                header = loadout.name .. ' - $' .. loadout.price,
+                txt = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
                 params = {
                     event = 'matti-airsoft:selectLoadout',
                     args = { loadout = loadout }

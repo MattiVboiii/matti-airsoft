@@ -12,7 +12,8 @@ local Translations = {
         includes = 'Omvat:',
     },
     inarena = {
-        shot = 'Je bent geraakt en ligt uit het spel!',
+        shotandout = 'Je bent geraakt en ligt uit het spel!',
+        shot = 'Je bent geraakt!',
     },
     command = {
         description_exitarena = 'Een speler geforceerd de arena uit smijten (Admin Only)',

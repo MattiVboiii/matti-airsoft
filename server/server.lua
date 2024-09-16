@@ -30,6 +30,13 @@ local function RemoveWeaponFromPlayerPed(playerId, weaponName)
     RemoveWeaponFromPed(playerPed, GetHashKey(weaponName))
 end
 
+-- Event to revive a player after they are killed in the airsoft zone
+RegisterServerEvent('matti-airsoft:revivePlayer')
+AddEventHandler('matti-airsoft:revivePlayer', function()
+    local src = source
+    TriggerClientEvent('hospital:client:Revive', src)
+end)
+
 QBCore.Functions.CreateCallback('matti-airsoft:canAffordLoadout', function(source, cb, price)
     local player = QBCore.Functions.GetPlayer(source)
     if player then
