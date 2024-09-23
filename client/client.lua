@@ -314,6 +314,7 @@ end)
 RegisterNetEvent('matti-airsoft:teleportOnly')
 AddEventHandler('matti-airsoft:teleportOnly', function()
     TeleportToRandomPosition()
+    currentLoadout = noLoadout
 end)
 
 RegisterNetEvent('matti-airsoft:giveRandomGun')
@@ -352,6 +353,11 @@ end)
 
 function RemoveLoadout()
     local playerPed = PlayerPedId()
+
+    if currentLoadout == noLoadout then
+        return
+    end
+
     for _, loadout in ipairs(Config.Loadouts) do
         for _, weapon in ipairs(loadout.weapons) do
             if QBCore.Functions.HasItem(weapon.name) then
