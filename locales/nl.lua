@@ -59,11 +59,12 @@ local Translations = {
         shot = 'Je bent geraakt!',
     },
     command = {
-        description_exitarena = 'Een speler geforceerd de arena uit smijten (Admin Only)',
-        help_exitarena = 'Speler ID',
+        description_exitarena = 'Een speler of alle spelers geforceerd de arena uit smijten (Admin Only)',
+        help_exitarena = 'Speler ID of "all"',
         invalid_player_id = 'Ongeldige speler ID.',
         player_removed = 'Speler is geforceerd verwijderd uit de arena.',
         player_not_in_arena = 'Speler bevindt zich niet in de airsoft arena.',
+        all_players_removed = 'Alle spelers zijn geforceerd verwijderd uit de arena.'
     },
     notifications = {
         entered = 'Je hebt de Airsoft Arena betreden.',

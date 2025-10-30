@@ -59,11 +59,12 @@ local Translations = {
         shot = 'You have been hit!',
     },
     command = {
-        description_exitarena = 'Forcefully exit a player from the airsoft arena (Admin Only)',
-        help_exitarena = 'Player ID',
+        description_exitarena = 'Forcefully exit a player or all players from the airsoft arena (Admin Only)',
+        help_exitarena = 'Player ID or "all"',
         invalid_player_id = 'Invalid player ID.',
         player_removed = 'Player has been forcefully removed from the arena.',
-        player_not_in_arena = 'Player is not inside the airsoft arena.'
+        player_not_in_arena = 'Player is not inside the airsoft arena.',
+        all_players_removed = 'All players have been forcefully removed from the arena.'
     },
     notifications = {
         entered = 'You are now in the Airsoft Arena.',

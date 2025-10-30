@@ -123,7 +123,7 @@ function Lobby.Create(playerId, lobbyName)
     Data.playerLobbies[playerId] = lobbyId
     
     if Config.Debug then
-        print('[AIRSOFT] Lobby created: ' .. lobbyId .. ' by ' .. playerName)
+        print(' Lobby created: ' .. lobbyId .. ' by ' .. playerName)
     end
     
     return Data.lobbies[lobbyId]
@@ -153,7 +153,7 @@ function Lobby.Join(playerId, lobbyId)
     Data.playerLobbies[playerId] = lobbyId
     
     if Config.Debug then
-        print('[AIRSOFT] ' .. playerName .. ' joined lobby: ' .. lobbyId)
+        print(' ' .. playerName .. ' joined lobby: ' .. lobbyId)
     end
     
     for pid, _ in pairs(lobby.players) do
@@ -177,13 +177,13 @@ function Lobby.Leave(playerId)
     Data.playerLobbies[playerId] = nil
     
     if Config.Debug then
-        print('[AIRSOFT] ' .. playerName .. ' left lobby: ' .. lobbyId)
+        print(' ' .. playerName .. ' left lobby: ' .. lobbyId)
     end
     
     if Lobby.GetPlayerCount(lobby) == 0 then
         Data.lobbies[lobbyId] = nil
         if Config.Debug then
-            print('[AIRSOFT] Lobby ' .. lobbyId .. ' deleted (empty)')
+            print(' Lobby ' .. lobbyId .. ' deleted (empty)')
         end
     else
         if lobby.host == playerId then
@@ -221,7 +221,7 @@ function Lobby.SetGameMode(playerId, mode)
     lobby.gameMode = mode
     
     if Config.Debug then
-        print('[AIRSOFT] Lobby ' .. lobbyId .. ' game mode set to: ' .. mode)
+        print(' Lobby ' .. lobbyId .. ' game mode set to: ' .. mode)
     end
     
     for pid, _ in pairs(lobby.players) do
@@ -249,7 +249,7 @@ function Lobby.SetLoadout(playerId, loadout)
     lobby.selectedLoadout = loadout
     
     if Config.Debug then
-        print('[AIRSOFT] Lobby ' .. lobbyId .. ' loadout set to: ' .. (loadout and loadout.name or 'None'))
+        print(' Lobby ' .. lobbyId .. ' loadout set to: ' .. (loadout and loadout.name or 'None'))
     end
     
     for pid, _ in pairs(lobby.players) do
@@ -291,9 +291,9 @@ function Lobby.StartGame(playerId)
     end
     
     if Config.Debug then
-        print('[AIRSOFT] Game started in lobby: ' .. lobbyId)
-        print('[AIRSOFT] Arena occupied by lobby: ' .. lobbyId)
-        print('[AIRSOFT] Game mode: ' .. lobby.gameMode)
+        print(' Game started in lobby: ' .. lobbyId)
+        print(' Arena occupied by lobby: ' .. lobbyId)
+        print(' Game mode: ' .. lobby.gameMode)
     end
     
     return true
@@ -334,7 +334,7 @@ function Leaderboard.RemovePlayer(playerId)
             if not anyPlayerInArena then
                 Data.activeLobbyInArena = nil
                 if Config.Debug then
-                    print('[AIRSOFT] Arena cleared - lobby ' .. lobbyId .. ' has no more players in arena')
+                    print(' Arena cleared - lobby ' .. lobbyId .. ' has no more players in arena')
                 end
             end
         end
@@ -358,9 +358,9 @@ function Leaderboard.RecordHit(victimId, killerId)
     
     if Config.Debug then
         if killerId and killerId ~= victimId then
-            print('[AIRSOFT] ' .. victimName .. ' was hit by ' .. killerName)
+            print(' ' .. victimName .. ' was hit by ' .. killerName)
         else
-            print('[AIRSOFT] ' .. victimName .. ' was hit')
+            print(' ' .. victimName .. ' was hit')
         end
     end
     
@@ -453,7 +453,7 @@ RegisterNetEvent('matti-airsoft:setPlayerTeam', function(team)
     Data.playerTeams[source] = team
     
     if Config.Debug then
-        print('[AIRSOFT] Player ' .. source .. ' set to ' .. team)
+        print(' Player ' .. source .. ' set to ' .. team)
     end
     
     TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('notifications.team_selected') .. ' ' .. (team == 'team1' and Lang:t('menu.team1') or Lang:t('menu.team2')), 'success')
@@ -484,7 +484,7 @@ RegisterServerEvent('matti-airsoft:revivePlayer', function()
     end
     
     if Config.Debug then
-        print('[AIRSOFT] Player ' .. source .. ' revived in arena')
+        print(' Player ' .. source .. ' revived in arena')
     end
 end)
 
@@ -596,16 +596,30 @@ QBCore.Commands.Add(
     { { name = 'id', help = Lang:t('command.help_exitarena') } },
     false,
     function(source, args)
-        local playerId = tonumber(args[1]) or source
-        if playerId then
-            local targetPlayer = QBCore.Functions.GetPlayer(playerId)
-            if targetPlayer then
-                TriggerClientEvent('matti-airsoft:checkIfInArena', playerId, source)
+        if args[1] == 'all' then
+            local removedCount = 0
+            for playerId, _ in pairs(Data.arenaStats) do
+                TriggerClientEvent('matti-airsoft:forceExitArena', playerId)
+                Data.arenaStats[playerId] = nil
+                removedCount = removedCount + 1
+            end
+            Leaderboard.Broadcast()
+            TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.all_players_removed'), 'success')
+            if Config.Debug then
+                print(' Admin ' .. source .. ' removed all players from arena (' .. removedCount .. ' players)')
+            end
+        else
+            local playerId = tonumber(args[1]) or source
+            if playerId then
+                local targetPlayer = QBCore.Functions.GetPlayer(playerId)
+                if targetPlayer then
+                    TriggerClientEvent('matti-airsoft:checkIfInArena', playerId, source)
+                else
+                    TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.invalid_player_id'), 'error')
+                end
             else
                 TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.invalid_player_id'), 'error')
             end
-        else
-            TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.invalid_player_id'), 'error')
         end
     end,
     'admin'

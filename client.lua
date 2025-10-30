@@ -268,7 +268,7 @@ function Combat.TrackDamage()
                         if attackerPlayerId and attackerPlayerId ~= -1 then
                             State.lastAttacker = GetPlayerServerId(attackerPlayerId)
                             if Config.Debug then
-                                print('[AIRSOFT DEBUG] Damage detected from player server ID: ' .. tostring(State.lastAttacker))
+                                print(' Damage detected from player server ID: ' .. tostring(State.lastAttacker))
                             end
                         end
                     end
@@ -304,13 +304,13 @@ function Combat.CheckHitStatus()
                     if not killerId and State.lastAttacker then
                         killerId = State.lastAttacker
                         if Config.Debug then
-                            print('[AIRSOFT DEBUG] Using lastAttacker for killer ID: ' .. tostring(killerId))
+                            print(' Using lastAttacker for killer ID: ' .. tostring(killerId))
                         end
                     end
                     
                     if Config.Debug then
                         local stunStatus = IsPedBeingStunned(playerPed, 0) and "STUNNED" or "DEAD"
-                        print('[AIRSOFT DEBUG] Player was hit (' .. stunStatus .. '). Killer Ped: ' .. tostring(killerPed) .. ', Killer server ID: ' .. tostring(killerId))
+                        print(' Player was hit (' .. stunStatus .. '). Killer Ped: ' .. tostring(killerPed) .. ', Killer server ID: ' .. tostring(killerId))
                     end
                     
                     TriggerServerEvent('matti-airsoft:playerWasHit', killerId)
@@ -320,7 +320,7 @@ function Combat.CheckHitStatus()
                         local wasStunned = IsPedBeingStunned(playerPed, 0) and not IsEntityDead(playerPed)
                         
                         if Config.Debug then
-                            print('[AIRSOFT DEBUG] Starting revive logic. Was stunned: ' .. tostring(wasStunned))
+                            print(' Starting revive logic. Was stunned: ' .. tostring(wasStunned))
                         end
                         
                         if Config.TeleportOnHit then
@@ -338,13 +338,13 @@ function Combat.CheckHitStatus()
                         
                         if wasStunned then
                             if Config.Debug then
-                                print('[AIRSOFT DEBUG] Player was stunned, reviving immediately')
+                                print(' Player was stunned, reviving immediately')
                             end
                             Wait(500)
                             TriggerServerEvent('matti-airsoft:revivePlayer')
                         else
                             if Config.Debug then
-                                print('[AIRSOFT DEBUG] Player in laststand/death, reviving from laststand')
+                                print(' Player in laststand/death, reviving from laststand')
                             end
                             Wait(1000)
                             TriggerServerEvent('matti-airsoft:revivePlayer')
