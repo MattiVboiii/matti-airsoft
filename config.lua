@@ -1,11 +1,15 @@
 Config = {}
 
 Config.Framework = 'qb' -- Options: 'qb' or 'ox'
-Config.Debug = false
-Config.TargetSystem = 'qb-target' -- Options: 'qb-target' or 'ox_target'
-Config.MenuSystem = 'qb-menu' -- Options: 'qb-menu' or 'ox_lib'
-Config.NotifySystem = 'qb-core' -- Options: 'qb-core' or 'ox_lib'
-Config.InventorySystem = 'qb-inventory' -- Options: 'qb-inventory' or 'ox_inventory'
+Config.Debug = true -- Enable/disable debug prints & spawn peds
+Config.TargetSystem = 'ox_target' -- Options: 'qb-target' or 'ox_target'
+Config.MenuSystem = 'ox_lib' -- Options: 'qb-menu' or 'ox_lib'
+Config.NotifySystem = 'ox_lib' -- Options: 'qb-core' or 'ox_lib'
+Config.InventorySystem = 'ox_inventory' -- Options: 'qb-inventory' or 'ox_inventory'
+
+-- Leaderboard Settings
+Config.LeaderboardEnabled = true -- Enable/disable the kill leaderboard
+Config.LeaderboardKey = 166 -- F5 key (see https://docs.fivem.net/docs/game-references/controls/ for key codes)
 
 Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'
 
@@ -42,6 +46,7 @@ Config.SpawnLocations = {
 
 -- Location where the player will be teleported if hit/dead
 Config.TeleportOnHit = true
+Config.ContinuePlayingAfterDeath = true -- If true, player respawns in arena instead of being kicked out
 Config.ReturnLocation = vector3(2024.36, 2846.33, 50.26)
 
 -- Blip configuration for the airsoft zone
@@ -89,7 +94,7 @@ Config.Loadouts = {
 	{
 		name = 'Loadout 4 (OX)',
 		weapons = {
-			{ name = 'weapon_airsoftglock20', label = 'Pistol' },
+			{ name = 'weapon_pistol', label = 'Pistol' },
 		},
 		ammo = {
 			{ name = 'ammo-9', amount = 100 },

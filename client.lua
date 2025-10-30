@@ -4,6 +4,8 @@ local airsoftZone, currentLoadout = nil, nil
 local enterPed, exitPed -- Variables for interaction peds
 local debugPeds = {} -- Table to store debug peds
 local originalInventory = {} -- Store the player's original inventory
+local leaderboardVisible = false -- Track leaderboard visibility
+local isInArena = false -- Track if player is in the arena
 
 -- Function to get the player's full name
 local function GetPlayerName()
@@ -217,10 +219,40 @@ local function CheckHitStatus()
 				-- Player was hit or killed, set isHit to true
 				if not isHit then
 					isHit = true
+					
+					-- Detect who killed the player
+					local killerId = nil
+					local killerPed = GetPedSourceOfDeath(playerPed)
+					
+					if killerPed and killerPed ~= 0 and killerPed ~= playerPed then
+						-- Check if killer is a player
+						if IsPedAPlayer(killerPed) then
+							local killerPlayerId = NetworkGetPlayerIndexFromPed(killerPed)
+							if killerPlayerId and killerPlayerId ~= -1 then
+								killerId = GetPlayerServerId(killerPlayerId)
+							end
+						end
+					end
+					
+					-- Debug logging
+					if Config.Debug then
+						print('[AIRSOFT DEBUG] Player was hit. Killer server ID: ' .. tostring(killerId))
+					end
+					
+					-- Notify server about the hit
+					TriggerServerEvent('matti-airsoft:playerWasHit', killerId)
+					
 					if Config.TeleportOnHit then
-						-- Teleport the player to the return location
-						SendNotification(Lang:t('inarena.shotandout'))
-						SetEntityCoords(playerPed, Config.ReturnLocation)
+						if Config.ContinuePlayingAfterDeath then
+							-- Respawn in arena at random location
+							SendNotification(Lang:t('inarena.shot'))
+							Wait(2000)
+							TeleportToRandomPosition()
+						else
+							-- Teleport to the return location (exit arena)
+							SendNotification(Lang:t('inarena.shotandout'))
+							SetEntityCoords(playerPed, Config.ReturnLocation)
+						end
 					else
 						-- Send the player a notification that they were hit
 						SendNotification(Lang:t('inarena.shot'))
@@ -228,8 +260,8 @@ local function CheckHitStatus()
 
 					-- If the player is dead, wait for a short delay then revive them
 					if IsEntityDead(playerPed) then
-						Wait(5000) -- Small delay to ensure the player is "isDead" before reviving
-						TriggerServerEvent('matti-airsoft:revivePlayer', playerId)
+						Wait(3000) -- Small delay to ensure the player is "isDead" before reviving
+						TriggerServerEvent('matti-airsoft:revivePlayer', PlayerId())
 					end
 				end
 			else
@@ -244,21 +276,35 @@ end
 local function HandleZoneEntry(isPointInside)
 	-- Check if the player is inside the zone
 	if isPointInside then
+		isInArena = true
 		-- Notify the player about zone entry
 		SendNotification(Lang:t('notifications.entered'), 'success')
 		-- Trigger debug event if debugging is enabled
 		if Config.Debug then
 			TriggerServerEvent('matti-airsoft:debugZoneEntry', GetPlayerName(), 'entered')
 		end
+		-- Notify server that player entered arena
+		TriggerServerEvent('matti-airsoft:playerEnteredArena')
+		-- Show leaderboard automatically
+		if Config.LeaderboardEnabled then
+			ShowLeaderboard()
+		end
 		-- Start checking the hit status
 		CheckHitStatus()
 	else
+		isInArena = false
+		-- Hide leaderboard when exiting
+		if Config.LeaderboardEnabled then
+			HideLeaderboard()
+		end
 		-- Notify the player about zone exit
 		SendNotification(Lang:t('notifications.exited'), 'error')
 		-- Trigger debug event if debugging is enabled
 		if Config.Debug then
 			TriggerServerEvent('matti-airsoft:debugZoneEntry', GetPlayerName(), 'exited')
 		end
+		-- Notify server that player left arena
+		TriggerServerEvent('matti-airsoft:playerLeftArena')
 		-- Remove loadout and restore inventory on exit
 		RemoveLoadout()
 		RestoreInventory()
@@ -520,3 +566,61 @@ function RemoveLoadout()
 	-- Set the player's current loadout to nil
 	currentLoadout = nil
 end
+
+-- Leaderboard Functions
+-- Function to show leaderboard
+function ShowLeaderboard()
+	if not Config.LeaderboardEnabled then
+		return
+	end
+	
+	leaderboardVisible = true
+	
+	-- Request leaderboard data from server
+	QBCore.Functions.TriggerCallback('matti-airsoft:getLeaderboard', function(leaderboard)
+		SendNUIMessage({
+			action = 'showLeaderboard',
+			show = true,
+			leaderboard = leaderboard
+		})
+		SetNuiFocus(false, false) -- Don't capture mouse
+	end)
+end
+
+-- Function to hide leaderboard
+function HideLeaderboard()
+	leaderboardVisible = false
+	SendNUIMessage({
+		action = 'showLeaderboard',
+		show = false
+	})
+end
+
+-- Function to toggle leaderboard visibility (kept for compatibility)
+function ToggleLeaderboard()
+	if leaderboardVisible then
+		HideLeaderboard()
+	else
+		ShowLeaderboard()
+	end
+end
+
+-- Event to update leaderboard from server
+RegisterNetEvent('matti-airsoft:updateLeaderboard')
+AddEventHandler('matti-airsoft:updateLeaderboard', function(leaderboard)
+	if leaderboardVisible and isInArena then
+		SendNUIMessage({
+			action = 'updateLeaderboard',
+			leaderboard = leaderboard
+		})
+	end
+end)
+
+-- NUI Callback for closing leaderboard (removed as it's always visible)
+RegisterNUICallback('closeLeaderboard', function(data, cb)
+	cb('ok')
+end)
+
+-- Keybind removed as leaderboard is always visible
+-- Players can still see real-time updates automatically
+

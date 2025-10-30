@@ -7,6 +7,9 @@ else
     QBCore = exports['qb-core']:GetCoreObject()
 end
 
+-- Kill tracking system
+local arenaStats = {} -- Table to store player stats: {[playerId] = {name = "", kills = 0, deaths = 0}}
+
 -- Update GetPlayer function to handle both frameworks
 local function GetPlayer(playerId)
     if Config.Framework == 'ox' then
@@ -175,3 +178,108 @@ AddEventHandler('matti-airsoft:reportArenaStatus', function(adminId, isInArena)
 		TriggerClientEvent('matti-airsoft:sendNotification', adminId, Lang:t('command.player_not_in_arena'), 'error')
 	end
 end)
+
+-- Kill tracking events
+-- Event when player enters arena
+RegisterNetEvent('matti-airsoft:playerEnteredArena')
+AddEventHandler('matti-airsoft:playerEnteredArena', function()
+	local src = source
+	local playerName = GetPlayerNameById(src)
+	
+	if not arenaStats[src] then
+		arenaStats[src] = {
+			name = playerName,
+			kills = 0,
+			deaths = 0
+		}
+	end
+	
+	-- Broadcast updated leaderboard to all players in arena
+	BroadcastLeaderboard()
+end)
+
+-- Event when player exits arena
+RegisterNetEvent('matti-airsoft:playerLeftArena')
+AddEventHandler('matti-airsoft:playerLeftArena', function()
+	local src = source
+	
+	-- Remove player from stats
+	arenaStats[src] = nil
+	
+	-- Broadcast updated leaderboard to all players in arena
+	BroadcastLeaderboard()
+end)
+
+-- Event when a player is hit/killed
+RegisterNetEvent('matti-airsoft:playerWasHit')
+AddEventHandler('matti-airsoft:playerWasHit', function(killerId)
+	local victimId = source
+	local victimName = arenaStats[victimId] and arenaStats[victimId].name or 'Unknown'
+	local killerName = 'Unknown'
+	
+	-- Update victim's deaths
+	if arenaStats[victimId] then
+		arenaStats[victimId].deaths = arenaStats[victimId].deaths + 1
+	end
+	
+	-- Update killer's kills
+	if killerId and killerId ~= victimId and arenaStats[killerId] then
+		arenaStats[killerId].kills = arenaStats[killerId].kills + 1
+		killerName = arenaStats[killerId].name
+	end
+	
+	-- Debug logging with names
+	if Config.Debug then
+		if killerId and killerId ~= victimId then
+			print('[AIRSOFT] ' .. victimName .. ' was hit by ' .. killerName)
+		else
+			print('[AIRSOFT] ' .. victimName .. ' was hit')
+		end
+	end
+	
+	-- Broadcast updated leaderboard to all players in arena
+	BroadcastLeaderboard()
+end)
+
+-- Function to broadcast leaderboard to all players in arena
+function BroadcastLeaderboard()
+	local leaderboard = {}
+	
+	for playerId, stats in pairs(arenaStats) do
+		table.insert(leaderboard, {
+			name = stats.name,
+			kills = stats.kills,
+			deaths = stats.deaths,
+			kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills
+		})
+	end
+	
+	-- Send to all players
+	TriggerClientEvent('matti-airsoft:updateLeaderboard', -1, leaderboard)
+end
+
+-- Callback to get current leaderboard
+QBCore.Functions.CreateCallback('matti-airsoft:getLeaderboard', function(source, cb)
+	local leaderboard = {}
+	
+	for playerId, stats in pairs(arenaStats) do
+		table.insert(leaderboard, {
+			name = stats.name,
+			kills = stats.kills,
+			deaths = stats.deaths,
+			kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills
+		})
+	end
+	
+	cb(leaderboard)
+end)
+
+-- Clean up stats when player disconnects
+AddEventHandler('playerDropped', function()
+	local src = source
+	if arenaStats[src] then
+		arenaStats[src] = nil
+		BroadcastLeaderboard()
+	end
+end)
+

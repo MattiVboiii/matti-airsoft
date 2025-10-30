@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Airsoft Leaderboard</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div id="leaderboard" class="leaderboard-container" style="display: none">
+      <div class="leaderboard-header">
+        <h1>🎯 AIRSOFT ARENA</h1>
+        <h2>Leaderboard</h2>
+      </div>
+      <div class="leaderboard-content">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Player</th>
+              <th>K</th>
+              <th>D</th>
+              <th>K/D</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body">
+            <!-- Leaderboard entries will be dynamically added here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
