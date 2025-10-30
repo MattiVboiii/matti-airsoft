@@ -26,10 +26,13 @@ $(document).ready(function () {
 
     if (!leaderboard || leaderboard.length === 0) {
       tbody.append(
-        '<tr><td colspan="5" class="no-data">No players yet</td></tr>'
+        '<tr><td colspan="6" class="no-data">No players yet</td></tr>'
       );
       return;
     }
+
+    // Check if any player has a team (to determine if teams mode is active)
+    const teamsMode = leaderboard.some((player) => player.team);
 
     // Sort leaderboard by kills (descending), then by K/D ratio
     leaderboard.sort((a, b) => {
@@ -49,6 +52,8 @@ $(document).ready(function () {
 
       let rowClass = "";
       let rankClass = "";
+      let teamDisplay = "";
+      let teamClass = "";
 
       // Add special styling for top 3 players
       if (rank === 1) {
@@ -62,10 +67,28 @@ $(document).ready(function () {
         rankClass = "bronze";
       }
 
+      // Handle team display
+      if (teamsMode) {
+        if (player.team === "team1") {
+          teamDisplay = '<span class="team-badge team-blue">Team 1</span>';
+          teamClass = "team-blue-row";
+        } else if (player.team === "team2") {
+          teamDisplay = '<span class="team-badge team-red">Team 2</span>';
+          teamClass = "team-red-row";
+        } else {
+          teamDisplay = '<span class="team-badge team-none">No Team</span>';
+          teamClass = "team-none-row";
+        }
+        rowClass += " " + teamClass;
+      } else {
+        teamDisplay = '<span class="team-badge team-ffa">FFA</span>';
+      }
+
       const row = `
                 <tr class="${rowClass}">
                     <td class="rank ${rankClass}">#${rank}</td>
                     <td class="player-name">${escapeHtml(player.name)}</td>
+                    <td class="team">${teamDisplay}</td>
                     <td class="kills">${player.kills}</td>
                     <td class="deaths">${player.deaths}</td>
                     <td class="kd">${kd}</td>

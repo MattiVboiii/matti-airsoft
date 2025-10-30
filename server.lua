@@ -7,9 +7,6 @@ else
     QBCore = exports['qb-core']:GetCoreObject()
 end
 
--- Kill tracking system
-local arenaStats = {} -- Table to store player stats: {[playerId] = {name = "", kills = 0, deaths = 0}}
-
 -- Update GetPlayer function to handle both frameworks
 local function GetPlayer(playerId)
     if Config.Framework == 'ox' then
@@ -18,6 +15,354 @@ local function GetPlayer(playerId)
         return QBCore.Functions.GetPlayer(playerId)
     end
 end
+
+-- Kill tracking system
+local arenaStats = {} -- Table to store player stats: {[playerId] = {name = "", kills = 0, deaths = 0}}
+
+-- Multi-player Lobby system
+local lobbies = {} -- Table to store all lobbies: {[lobbyId] = {host, players, gameMode, loadout, name}}
+local playerLobbies = {} -- Track which lobby each player is in: {[playerId] = lobbyId}
+local playerTeams = {} -- Track which team each player is in: {[playerId] = 'team1' or 'team2'}
+local activeLobbyInArena = nil -- Track which lobby is currently playing in the arena
+local nextLobbyId = 1
+
+-- Utility function to get player name
+local function GetPlayerNameForLobby(playerId)
+    local player = GetPlayer(playerId)
+    if player then
+        if Config.Framework == 'ox' then
+            return player.get('firstName') .. ' ' .. player.get('lastName')
+        else
+            if player.PlayerData and player.PlayerData.charinfo then
+                return player.PlayerData.charinfo.firstname .. ' ' .. player.PlayerData.charinfo.lastname
+            end
+        end
+    end
+    return 'Player ' .. playerId
+end
+
+-- Create a new lobby
+RegisterNetEvent('matti-airsoft:createLobby')
+AddEventHandler('matti-airsoft:createLobby', function(lobbyName)
+    local src = source
+    local playerName = GetPlayerNameForLobby(src)
+    
+    -- Check if player is already in a lobby
+    if playerLobbies[src] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.already_in_lobby'), 'error')
+        return
+    end
+    
+    local lobbyId = nextLobbyId
+    nextLobbyId = nextLobbyId + 1
+    
+    lobbies[lobbyId] = {
+        id = lobbyId,
+        name = lobbyName or (playerName .. "'s Lobby"),
+        host = src,
+        players = {
+            [src] = {id = src, name = playerName}
+        },
+        gameMode = 'ffa',
+        selectedLoadout = nil,
+        maxPlayers = 16
+    }
+    
+    playerLobbies[src] = lobbyId
+    
+    if Config.Debug then
+        print('[AIRSOFT] Lobby created: ' .. lobbyId .. ' by ' .. playerName)
+    end
+    
+    TriggerClientEvent('matti-airsoft:lobbyCreated', src, lobbies[lobbyId])
+    TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.lobby_created'), 'success')
+end)
+
+-- Join a lobby
+RegisterNetEvent('matti-airsoft:joinLobby')
+AddEventHandler('matti-airsoft:joinLobby', function(lobbyId)
+    local src = source
+    local playerName = GetPlayerNameForLobby(src)
+    
+    -- Check if player is already in a lobby
+    if playerLobbies[src] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.already_in_lobby'), 'error')
+        return
+    end
+    
+    -- Check if lobby exists
+    if not lobbies[lobbyId] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.lobby_not_found'), 'error')
+        return
+    end
+    
+    local lobby = lobbies[lobbyId]
+    
+    -- Check if lobby is full
+    local playerCount = 0
+    for _ in pairs(lobby.players) do
+        playerCount = playerCount + 1
+    end
+    
+    if playerCount >= lobby.maxPlayers then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.lobby_full'), 'error')
+        return
+    end
+    
+    -- Add player to lobby
+    lobby.players[src] = {id = src, name = playerName}
+    playerLobbies[src] = lobbyId
+    
+    if Config.Debug then
+        print('[AIRSOFT] ' .. playerName .. ' joined lobby: ' .. lobbyId)
+    end
+    
+    -- Notify all players in the lobby
+    for playerId, _ in pairs(lobby.players) do
+        TriggerClientEvent('matti-airsoft:lobbyUpdated', playerId, lobby)
+    end
+    
+    TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.lobby_joined'), 'success')
+end)
+
+-- Leave a lobby
+RegisterNetEvent('matti-airsoft:leaveLobby')
+AddEventHandler('matti-airsoft:leaveLobby', function()
+    local src = source
+    local lobbyId = playerLobbies[src]
+    
+    if not lobbyId or not lobbies[lobbyId] then
+        return
+    end
+    
+    local lobby = lobbies[lobbyId]
+    local playerName = GetPlayerNameForLobby(src)
+    
+    -- Remove player from lobby
+    lobby.players[src] = nil
+    playerLobbies[src] = nil
+    
+    if Config.Debug then
+        print('[AIRSOFT] ' .. playerName .. ' left lobby: ' .. lobbyId)
+    end
+    
+    -- Check if lobby is now empty
+    local playerCount = 0
+    for _ in pairs(lobby.players) do
+        playerCount = playerCount + 1
+    end
+    
+    if playerCount == 0 then
+        -- Delete empty lobby
+        lobbies[lobbyId] = nil
+        if Config.Debug then
+            print('[AIRSOFT] Lobby ' .. lobbyId .. ' deleted (empty)')
+        end
+    else
+        -- If host left, assign new host
+        if lobby.host == src then
+            for playerId, _ in pairs(lobby.players) do
+                lobby.host = playerId
+                TriggerClientEvent('matti-airsoft:sendNotification', playerId, Lang:t('notifications.you_are_host'), 'info')
+                break
+            end
+        end
+        
+        -- Notify remaining players
+        for playerId, _ in pairs(lobby.players) do
+            TriggerClientEvent('matti-airsoft:lobbyUpdated', playerId, lobby)
+        end
+    end
+    
+    TriggerClientEvent('matti-airsoft:lobbyClosed', src)
+end)
+
+-- Set game mode (host only)
+RegisterNetEvent('matti-airsoft:setGameMode')
+AddEventHandler('matti-airsoft:setGameMode', function(mode)
+    local src = source
+    local lobbyId = playerLobbies[src]
+    
+    if not lobbyId or not lobbies[lobbyId] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_in_lobby'), 'error')
+        return
+    end
+    
+    local lobby = lobbies[lobbyId]
+    
+    -- Check if player is host
+    if lobby.host ~= src then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_host'), 'error')
+        return
+    end
+    
+    lobby.gameMode = mode
+    
+    if Config.Debug then
+        print('[AIRSOFT] Lobby ' .. lobbyId .. ' game mode set to: ' .. mode)
+    end
+    
+    -- Notify all players in the lobby
+    for playerId, _ in pairs(lobby.players) do
+        TriggerClientEvent('matti-airsoft:lobbyUpdated', playerId, lobby)
+    end
+end)
+
+-- Set loadout (host only)
+RegisterNetEvent('matti-airsoft:setLobbyLoadout')
+AddEventHandler('matti-airsoft:setLobbyLoadout', function(loadout)
+    local src = source
+    local lobbyId = playerLobbies[src]
+    
+    if not lobbyId or not lobbies[lobbyId] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_in_lobby'), 'error')
+        return
+    end
+    
+    local lobby = lobbies[lobbyId]
+    
+    -- Check if player is host
+    if lobby.host ~= src then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_host'), 'error')
+        return
+    end
+    
+    lobby.selectedLoadout = loadout
+    
+    if Config.Debug then
+        print('[AIRSOFT] Lobby ' .. lobbyId .. ' loadout set to: ' .. (loadout and loadout.name or 'None'))
+    end
+    
+    -- Notify all players in the lobby
+    for playerId, _ in pairs(lobby.players) do
+        TriggerClientEvent('matti-airsoft:lobbyUpdated', playerId, lobby)
+    end
+end)
+
+-- Set player team (for teams mode)
+RegisterNetEvent('matti-airsoft:setPlayerTeam')
+AddEventHandler('matti-airsoft:setPlayerTeam', function(team)
+    local src = source
+    local lobbyId = playerLobbies[src]
+    
+    if not lobbyId or not lobbies[lobbyId] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_in_lobby'), 'error')
+        return
+    end
+    
+    local lobby = lobbies[lobbyId]
+    
+    -- Check if lobby is in teams mode
+    if lobby.gameMode ~= 'teams' then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_teams_mode'), 'error')
+        return
+    end
+    
+    -- Set player's team
+    playerTeams[src] = team
+    
+    if Config.Debug then
+        print('[AIRSOFT] Player ' .. src .. ' set to ' .. team)
+    end
+    
+    TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.team_selected') .. ' ' .. (team == 'team1' and Lang:t('menu.team1') or Lang:t('menu.team2')), 'success')
+end)
+
+-- Get player's team
+QBCore.Functions.CreateCallback('matti-airsoft:getPlayerTeam', function(source, cb)
+    cb(playerTeams[source] or nil)
+end)
+
+-- Get all available lobbies
+QBCore.Functions.CreateCallback('matti-airsoft:getLobbies', function(source, cb)
+    local availableLobbies = {}
+    for lobbyId, lobby in pairs(lobbies) do
+        local playerCount = 0
+        for _ in pairs(lobby.players) do
+            playerCount = playerCount + 1
+        end
+        table.insert(availableLobbies, {
+            id = lobby.id,
+            name = lobby.name,
+            host = GetPlayerNameForLobby(lobby.host),
+            playerCount = playerCount,
+            maxPlayers = lobby.maxPlayers,
+            gameMode = lobby.gameMode,
+            isInArena = (activeLobbyInArena == lobbyId) -- Mark if this lobby is currently in arena
+        })
+    end
+    -- Include info about arena status
+    cb({
+        lobbies = availableLobbies,
+        arenaOccupied = activeLobbyInArena ~= nil
+    })
+end)
+
+-- Get player's current lobby
+QBCore.Functions.CreateCallback('matti-airsoft:getPlayerLobby', function(source, cb)
+    local lobbyId = playerLobbies[source]
+    if lobbyId and lobbies[lobbyId] then
+        cb(lobbies[lobbyId])
+    else
+        cb(nil)
+    end
+end)
+
+-- Start game (host only)
+RegisterNetEvent('matti-airsoft:startLobbyGame')
+AddEventHandler('matti-airsoft:startLobbyGame', function()
+    local src = source
+    local lobbyId = playerLobbies[src]
+    
+    if not lobbyId or not lobbies[lobbyId] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_in_lobby'), 'error')
+        return
+    end
+    
+    local lobby = lobbies[lobbyId]
+    
+    -- Check if player is host
+    if lobby.host ~= src then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.not_host'), 'error')
+        return
+    end
+    
+    -- Check if loadout is selected
+    if not lobby.selectedLoadout then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.select_loadout_first'), 'error')
+        return
+    end
+    
+    -- Check if arena is already occupied by another lobby
+    if activeLobbyInArena and activeLobbyInArena ~= lobbyId and lobbies[activeLobbyInArena] then
+        TriggerClientEvent('matti-airsoft:sendNotification', src, Lang:t('notifications.arena_occupied'), 'error')
+        return
+    end
+    
+    -- Set this lobby as the active one in the arena
+    activeLobbyInArena = lobbyId
+    
+    -- Start game for all players in lobby
+    for playerId, _ in pairs(lobby.players) do
+        TriggerClientEvent('matti-airsoft:gameStarting', playerId, lobby.selectedLoadout, lobby.gameMode)
+    end
+    
+    if Config.Debug then
+        print('[AIRSOFT] Game started in lobby: ' .. lobbyId)
+        print('[AIRSOFT] Arena occupied by lobby: ' .. lobbyId)
+        print('[AIRSOFT] Game mode: ' .. lobby.gameMode)
+    end
+end)
+
+-- Clean up when player disconnects
+AddEventHandler('playerDropped', function()
+    local src = source
+    local lobbyId = playerLobbies[src]
+    
+    if lobbyId and lobbies[lobbyId] then
+        TriggerEvent('matti-airsoft:leaveLobby')
+    end
+end)
 
 -- Utility function to get player name
 local function GetPlayerNameById(playerId)
@@ -65,7 +410,21 @@ end
 RegisterServerEvent('matti-airsoft:revivePlayer')
 AddEventHandler('matti-airsoft:revivePlayer', function()
 	local src = source
-	TriggerClientEvent('hospital:client:Revive', src)
+	
+	if Config.Framework == 'ox' then
+		-- OX Framework revive
+		local player = exports.ox_core:GetPlayer(src)
+		if player then
+			player.revive()
+		end
+	else
+		-- QBX revive using qbx_medical export
+		exports.qbx_medical:Revive(src)
+	end
+	
+	if Config.Debug then
+		print('[AIRSOFT] Player ' .. src .. ' revived in arena')
+	end
 end)
 
 -- Check if a player can afford a given loadout
@@ -206,6 +565,30 @@ AddEventHandler('matti-airsoft:playerLeftArena', function()
 	-- Remove player from stats
 	arenaStats[src] = nil
 	
+	-- Check if this player's lobby was in the arena and if all players left
+	local lobbyId = playerLobbies[src]
+	if lobbyId and activeLobbyInArena == lobbyId then
+		local lobby = lobbies[lobbyId]
+		if lobby then
+			-- Check if any players from this lobby are still in the arena
+			local anyPlayerInArena = false
+			for playerId, _ in pairs(lobby.players) do
+				if arenaStats[playerId] then
+					anyPlayerInArena = true
+					break
+				end
+			end
+			
+			-- If no players from this lobby are in arena, clear the arena
+			if not anyPlayerInArena then
+				activeLobbyInArena = nil
+				if Config.Debug then
+					print('[AIRSOFT] Arena cleared - lobby ' .. lobbyId .. ' has no more players in arena')
+				end
+			end
+		end
+	end
+	
 	-- Broadcast updated leaderboard to all players in arena
 	BroadcastLeaderboard()
 end)
@@ -250,7 +633,8 @@ function BroadcastLeaderboard()
 			name = stats.name,
 			kills = stats.kills,
 			deaths = stats.deaths,
-			kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills
+			kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills,
+			team = playerTeams[playerId] or nil -- Include team if in teams mode
 		})
 	end
 	
@@ -267,7 +651,8 @@ QBCore.Functions.CreateCallback('matti-airsoft:getLeaderboard', function(source,
 			name = stats.name,
 			kills = stats.kills,
 			deaths = stats.deaths,
-			kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills
+			kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills,
+			team = playerTeams[playerId] or nil -- Include team if in teams mode
 		})
 	end
 	

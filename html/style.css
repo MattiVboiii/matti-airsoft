@@ -188,6 +188,87 @@ td.kd {
   color: #ffc107;
 }
 
+/* Team badge styling */
+td.team {
+  padding: 5px;
+}
+
+.team-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.team-badge.team-blue {
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+  color: #ffffff;
+  border: 1px solid rgba(33, 150, 243, 0.5);
+}
+
+.team-badge.team-red {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: #ffffff;
+  border: 1px solid rgba(244, 67, 54, 0.5);
+}
+
+.team-badge.team-ffa {
+  background: linear-gradient(135deg, #9c27b0, #7b1fa2);
+  color: #ffffff;
+  border: 1px solid rgba(156, 39, 176, 0.5);
+}
+
+.team-badge.team-none {
+  background: linear-gradient(135deg, #757575, #616161);
+  color: #ffffff;
+  border: 1px solid rgba(117, 117, 117, 0.5);
+}
+
+/* Team row styling */
+tbody tr.team-blue-row {
+  border-left: 3px solid #2196f3;
+  background: linear-gradient(
+    90deg,
+    rgba(33, 150, 243, 0.15),
+    rgba(33, 150, 243, 0.05)
+  );
+}
+
+tbody tr.team-red-row {
+  border-left: 3px solid #f44336;
+  background: linear-gradient(
+    90deg,
+    rgba(244, 67, 54, 0.15),
+    rgba(244, 67, 54, 0.05)
+  );
+}
+
+tbody tr.team-none-row {
+  border-left: 3px solid #757575;
+  background: linear-gradient(
+    90deg,
+    rgba(117, 117, 117, 0.15),
+    rgba(117, 117, 117, 0.05)
+  );
+}
+
+/* Override for top players with teams */
+tbody tr.top-player.team-blue-row,
+tbody tr.second-player.team-blue-row,
+tbody tr.third-player.team-blue-row {
+  border-left: 3px solid #2196f3;
+}
+
+tbody tr.top-player.team-red-row,
+tbody tr.second-player.team-red-row,
+tbody tr.third-player.team-red-row {
+  border-left: 3px solid #f44336;
+}
+
 .leaderboard-footer {
   display: none;
 }
