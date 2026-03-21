@@ -113,7 +113,9 @@ RegisterServerEvent('matti-airsoft:revivePlayer', function()
                 player.revive()
             end
         end
-    else
+    elseif Config.Framework == 'qb' then
+        TriggerClientEvent('hospital:client:Revive', source)
+    elseif Config.Framework == 'qbx' then
         exports.qbx_medical:Revive(source)
     end
 

@@ -53,6 +53,8 @@ For the best experience, pair this script with [iakkoise's Softair Map](https://
 
 ## 🔫 Weapon Recommendations
 
+(Not using this? Prepare to encounter revive bugs for now)
+
 Enhance realism with [Localspetsnaz's Airsoft Guns Pack](https://forum.cfx.re/t/free-standalone-add-on-standalone-add-on-airsoft-guns/5026328):
 
 - Non-lethal BB pellets that stun instead of kill
@@ -170,3 +172,5 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 - Keep in mind that I made this script for fun and to learn, not to create a perfect product. If you want to contribute or help out, feel free to do so, PR's are always welcome!
 
 - The V2 of this script I believe will be the last major update, after that I will only add minor features, fix bugs and performance improvements.
+
+#### Last updated & tested on: 21/03/2026 - QBCore

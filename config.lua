@@ -1,6 +1,6 @@
 Config = {}
 
-Config.Framework = 'qb' -- Options: 'qb' or 'ox'
+Config.Framework = 'qbx' -- Options: 'qb', 'ox' or 'qbx' 
 Config.Debug = false -- Enable/disable debug prints & spawn peds
 Config.TargetSystem = 'ox_target' -- Options: 'qb-target' or 'ox_target'
 Config.MenuSystem = 'ox_lib' -- Options: 'qb-menu' or 'ox_lib'

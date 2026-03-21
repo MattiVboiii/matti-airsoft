@@ -47,3 +47,7 @@ shared_scripts({
 	'locales/*.lua',
 	'@ox_lib/init.lua',
 })
+
+dependencies {
+  'oxmysql'
+}
