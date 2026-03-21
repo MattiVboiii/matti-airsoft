@@ -7,7 +7,6 @@ lib.versionCheck('MattiVboiii/matti-airsoft')
 -- ============================================
 -- Framework Detection
 -- ============================================
-local framework = GetResourceState('qb-core') == 'started' and 'qb' or GetResourceState('ox_core') == 'started' and 'ox' or 'qb'
 local QBCore
 
 if Config.Framework == 'ox' then
@@ -24,6 +23,7 @@ local Data = {
     lobbies = {}, -- {[lobbyId] = {host, players, gameMode, loadout, name}}
     playerLobbies = {}, -- {[playerId] = lobbyId}
     playerTeams = {}, -- {[playerId] = 'team1' or 'team2'}
+    recentAttackers = {}, -- {[victimId] = {attackerId, timestamp}}
     activeLobbyInArena = nil,
     nextLobbyId = 1
 }
@@ -32,6 +32,21 @@ local Data = {
 -- Utility Functions
 -- ============================================
 local Utils = {}
+
+function Utils.GetRecentAttacker(victimId)
+    local entry = Data.recentAttackers[victimId]
+    if not entry then
+        return nil
+    end
+
+    local grace = Config.ScoreboardHitGracePeriod or 5000
+    if (GetGameTimer() - entry.timestamp) > grace then
+        Data.recentAttackers[victimId] = nil
+        return nil
+    end
+
+    return entry.attackerId
+end
 
 function Utils.GetPlayer(playerId)
     if Config.Framework == 'ox' then
@@ -305,6 +320,22 @@ end
 -- ============================================
 local Leaderboard = {}
 
+function Leaderboard.BuildRows()
+    local leaderboard = {}
+
+    for playerId, stats in pairs(Data.arenaStats) do
+        table.insert(leaderboard, {
+            name = stats.name,
+            kills = stats.kills,
+            deaths = stats.deaths,
+            kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills,
+            team = Data.playerTeams[playerId] or nil
+        })
+    end
+
+    return leaderboard
+end
+
 function Leaderboard.AddPlayer(playerId)
     if not Data.arenaStats[playerId] then
         Data.arenaStats[playerId] = {
@@ -368,35 +399,11 @@ function Leaderboard.RecordHit(victimId, killerId)
 end
 
 function Leaderboard.Broadcast()
-    local leaderboard = {}
-    
-    for playerId, stats in pairs(Data.arenaStats) do
-        table.insert(leaderboard, {
-            name = stats.name,
-            kills = stats.kills,
-            deaths = stats.deaths,
-            kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills,
-            team = Data.playerTeams[playerId] or nil
-        })
-    end
-    
-    TriggerClientEvent('matti-airsoft:updateLeaderboard', -1, leaderboard)
+    TriggerClientEvent('matti-airsoft:updateLeaderboard', -1, Leaderboard.BuildRows())
 end
 
 function Leaderboard.Get()
-    local leaderboard = {}
-    
-    for playerId, stats in pairs(Data.arenaStats) do
-        table.insert(leaderboard, {
-            name = stats.name,
-            kills = stats.kills,
-            deaths = stats.deaths,
-            kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills,
-            team = Data.playerTeams[playerId] or nil
-        })
-    end
-    
-    return leaderboard
+    return Leaderboard.BuildRows()
 end
 
 -- ============================================
@@ -465,11 +472,42 @@ RegisterNetEvent('matti-airsoft:playerEnteredArena', function()
 end)
 
 RegisterNetEvent('matti-airsoft:playerLeftArena', function()
+    Data.recentAttackers[source] = nil
     Leaderboard.RemovePlayer(source)
 end)
 
+RegisterNetEvent('matti-airsoft:registerRecentAttacker', function(attackerId)
+    local victimId = source
+    local attacker = tonumber(attackerId)
+
+    if not attacker or attacker == victimId then
+        return
+    end
+
+    Data.recentAttackers[victimId] = {
+        attackerId = attacker,
+        timestamp = GetGameTimer()
+    }
+
+    if Config.Debug then
+        print(' Cached recent attacker for victim ' .. victimId .. ': ' .. attacker)
+    end
+end)
+
 RegisterNetEvent('matti-airsoft:playerWasHit', function(killerId)
-    Leaderboard.RecordHit(source, killerId)
+    local victimId = source
+    local normalizedKillerId = tonumber(killerId)
+
+    if not normalizedKillerId or normalizedKillerId == victimId or not Data.arenaStats[normalizedKillerId] then
+        normalizedKillerId = Utils.GetRecentAttacker(victimId)
+    end
+
+    if Config.Debug then
+        print(' Processing hit victim=' .. victimId .. ' killer=' .. tostring(normalizedKillerId) .. ' raw=' .. tostring(killerId))
+    end
+
+    Leaderboard.RecordHit(victimId, normalizedKillerId)
+    Data.recentAttackers[victimId] = nil
 end)
 
 -- Revive Event
@@ -631,6 +669,8 @@ QBCore.Commands.Add(
 
 AddEventHandler('playerDropped', function()
     local src = source
+
+    Data.recentAttackers[src] = nil
     
     if Data.arenaStats[src] then
         Data.arenaStats[src] = nil

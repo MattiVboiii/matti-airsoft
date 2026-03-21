@@ -16,6 +16,7 @@ local State = {
     currentLoadout = nil,
     currentLobby = nil,
     lastAttacker = nil,
+	lastTrackedHit = nil,
     originalInventory = {},
     enterPed = nil,
     exitPed = nil,
@@ -254,26 +255,183 @@ end
 -- ============================================
 local Combat = {}
 
+local trackedWeaponHashes = {}
+
+for _, weaponName in ipairs(Config.ScoreboardTrackedWeapons or {}) do
+	trackedWeaponHashes[GetHashKey(weaponName)] = true
+end
+
+function Combat.GetAttributionGraceMs()
+	return Config.ScoreboardHitGracePeriod or 5000
+end
+
+function Combat.IsTrackedWeapon(weaponHash)
+	return weaponHash and trackedWeaponHashes[weaponHash] == true
+end
+
+function Combat.ResolveTrackedWeapon(attackerPed, eventWeaponHash, victimPed)
+	if Combat.IsTrackedWeapon(eventWeaponHash) then
+		return eventWeaponHash
+	end
+
+	if attackerPed and attackerPed ~= 0 then
+		local selectedWeapon = GetSelectedPedWeapon(attackerPed)
+		if Combat.IsTrackedWeapon(selectedWeapon) then
+			return selectedWeapon
+		end
+	end
+
+	if victimPed and victimPed ~= 0 then
+		for trackedWeaponHash in pairs(trackedWeaponHashes) do
+			if HasEntityBeenDamagedByWeapon(victimPed, trackedWeaponHash, 0) then
+				return trackedWeaponHash
+			end
+		end
+	end
+
+	return nil
+end
+
+function Combat.GetRecentTrackedHit()
+	if not State.lastTrackedHit then
+		return nil
+	end
+
+	if (GetGameTimer() - State.lastTrackedHit.timestamp) > Combat.GetAttributionGraceMs() then
+		State.lastTrackedHit = nil
+		return nil
+	end
+
+	return State.lastTrackedHit
+end
+
+function Combat.GetRecentAttacker()
+	if not State.lastAttacker then
+		return nil
+	end
+
+	if (GetGameTimer() - State.lastAttacker.timestamp) > Combat.GetAttributionGraceMs() then
+		State.lastAttacker = nil
+		return nil
+	end
+
+	return State.lastAttacker
+end
+
+function Combat.GetClosestPlayerServerId(maxDistance)
+	local playerPed = PlayerPedId()
+	local myCoords = GetEntityCoords(playerPed)
+	local closestDistance = maxDistance or 25.0
+	local closestServerId = nil
+
+	for _, playerId in ipairs(GetActivePlayers()) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed and targetPed ~= 0 then
+				local targetCoords = GetEntityCoords(targetPed)
+				local distance = #(myCoords - targetCoords)
+				if distance <= closestDistance then
+					closestDistance = distance
+					closestServerId = GetPlayerServerId(playerId)
+				end
+			end
+		end
+	end
+
+	return closestServerId
+end
+
+function Combat.ResolveKillerId(playerPed)
+	local killerId = nil
+	local shouldCreditKiller = false
+	local killerPed = GetPedSourceOfDeath(playerPed)
+	local causeOfDeath = GetPedCauseOfDeath(playerPed)
+	local recentTrackedHit = Combat.GetRecentTrackedHit()
+	local recentAttacker = Combat.GetRecentAttacker()
+
+	if killerPed and killerPed ~= 0 and killerPed ~= playerPed and IsPedAPlayer(killerPed) then
+		local killerPlayerId = NetworkGetPlayerIndexFromPed(killerPed)
+		if killerPlayerId and killerPlayerId ~= -1 then
+			killerId = GetPlayerServerId(killerPlayerId)
+			shouldCreditKiller = Combat.ResolveTrackedWeapon(killerPed, causeOfDeath, playerPed) ~= nil
+		end
+	end
+
+	if not shouldCreditKiller and recentTrackedHit then
+		killerId = recentTrackedHit.serverId
+		shouldCreditKiller = true
+		if Config.Debug then
+			print(' Using recent tracked hit for killer ID: ' .. tostring(killerId))
+		end
+	end
+
+	if not shouldCreditKiller and recentAttacker then
+		killerId = recentAttacker.serverId
+		shouldCreditKiller = true
+		if Config.Debug then
+			print(' Using recent attacker fallback for killer ID: ' .. tostring(killerId))
+		end
+	end
+
+	if not killerId then
+		killerId = Combat.GetClosestPlayerServerId(25.0)
+		if killerId and Config.Debug then
+			print(' Using closest player fallback for killer ID: ' .. tostring(killerId))
+		end
+	end
+
+	return killerId, shouldCreditKiller, killerPed, causeOfDeath
+end
+
 function Combat.TrackDamage()
     AddEventHandler('gameEventTriggered', function(event, data)
-        if event == 'CEventNetworkEntityDamage' then
-            local victim = data[1]
-            local attacker = data[2]
-            local playerPed = PlayerPedId()
-            
-            if victim == playerPed and State.isInArena then
-                if attacker and attacker ~= 0 and attacker ~= playerPed then
-                    if IsPedAPlayer(attacker) then
-                        local attackerPlayerId = NetworkGetPlayerIndexFromPed(attacker)
-                        if attackerPlayerId and attackerPlayerId ~= -1 then
-                            State.lastAttacker = GetPlayerServerId(attackerPlayerId)
-                            if Config.Debug then
-                                print(' Damage detected from player server ID: ' .. tostring(State.lastAttacker))
-                            end
-                        end
-                    end
-                end
-            end
+		if event ~= 'CEventNetworkEntityDamage' then
+			return
+		end
+
+		local victim = data[1]
+		local attacker = data[2]
+		local eventWeaponHash = data[7]
+		local playerPed = PlayerPedId()
+
+		if victim ~= playerPed or not State.isInArena then
+			return
+		end
+
+		if not attacker or attacker == 0 or attacker == playerPed or not IsPedAPlayer(attacker) then
+			return
+		end
+
+		local attackerPlayerId = NetworkGetPlayerIndexFromPed(attacker)
+		if not attackerPlayerId or attackerPlayerId == -1 then
+			return
+		end
+
+		local attackerServerId = GetPlayerServerId(attackerPlayerId)
+		State.lastAttacker = {
+			serverId = attackerServerId,
+			timestamp = GetGameTimer()
+		}
+
+		TriggerServerEvent('matti-airsoft:registerRecentAttacker', attackerServerId)
+
+		if Config.Debug then
+			print(' Damage detected from player server ID: ' .. tostring(attackerServerId) .. ' with event weapon hash: ' .. tostring(eventWeaponHash))
+		end
+
+		local trackedWeaponHash = Combat.ResolveTrackedWeapon(attacker, eventWeaponHash, playerPed)
+		if trackedWeaponHash then
+			State.lastTrackedHit = {
+				serverId = attackerServerId,
+				weaponHash = trackedWeaponHash,
+				timestamp = GetGameTimer()
+			}
+
+			if Config.Debug then
+				print(' Tracked airsoft hit from player server ID: ' .. tostring(attackerServerId) .. ' with weapon hash: ' .. tostring(trackedWeaponHash))
+			end
+		elseif Config.Debug then
+			print(' Damage ignored for scoreboard (non-airsoft or unresolved weapon). Event weapon hash: ' .. tostring(eventWeaponHash))
         end
     end)
 end
@@ -288,33 +446,18 @@ function Combat.CheckHitStatus()
             if IsPedBeingStunned(playerPed, 0) or IsEntityDead(playerPed) then
                 if not State.isHit then
                     State.isHit = true
-                    
-                    local killerId = nil
-                    local killerPed = GetPedSourceOfDeath(playerPed)
-                    
-                    if killerPed and killerPed ~= 0 and killerPed ~= playerPed then
-                        if IsPedAPlayer(killerPed) then
-                            local killerPlayerId = NetworkGetPlayerIndexFromPed(killerPed)
-                            if killerPlayerId and killerPlayerId ~= -1 then
-                                killerId = GetPlayerServerId(killerPlayerId)
-                            end
-                        end
-                    end
-                    
-                    if not killerId and State.lastAttacker then
-                        killerId = State.lastAttacker
-                        if Config.Debug then
-                            print(' Using lastAttacker for killer ID: ' .. tostring(killerId))
-                        end
-                    end
+
+                    local killerId, shouldCreditKiller, killerPed, causeOfDeath = Combat.ResolveKillerId(playerPed)
                     
                     if Config.Debug then
                         local stunStatus = IsPedBeingStunned(playerPed, 0) and "STUNNED" or "DEAD"
-                        print(' Player was hit (' .. stunStatus .. '). Killer Ped: ' .. tostring(killerPed) .. ', Killer server ID: ' .. tostring(killerId))
+                        print(' Player was hit (' .. stunStatus .. '). Cause hash: ' .. tostring(causeOfDeath) .. ', Killer Ped: ' .. tostring(killerPed) .. ', Killer server ID: ' .. tostring(killerId) .. ', Counted on scoreboard: true, Credited killer: ' .. tostring(shouldCreditKiller))
                     end
-                    
+
                     TriggerServerEvent('matti-airsoft:playerWasHit', killerId)
+
                     State.lastAttacker = nil
+                    State.lastTrackedHit = nil
                     
                     Citizen.CreateThread(function()
                         local wasStunned = IsPedBeingStunned(playerPed, 0) and not IsEntityDead(playerPed)
@@ -451,75 +594,145 @@ end
 -- ============================================
 local Menu = {}
 
+function Menu.IsQbMenu()
+	return Config.MenuSystem == 'qb-menu'
+end
+
+function Menu.AddOption(menu, option)
+	if Menu.IsQbMenu() then
+		local entry = {
+			header = option.title,
+			txt = option.description or '',
+			icon = option.icon,
+		}
+
+		if option.isHeader or option.disabled then
+			entry.isMenuHeader = true
+			entry.icon = nil
+		elseif option.event then
+			entry.params = {
+				event = option.event,
+				args = option.args,
+			}
+		end
+
+		table.insert(menu, entry)
+		return
+	end
+
+	local entry = {
+		title = option.title,
+		description = option.description or '',
+		icon = option.icon,
+		iconColor = option.iconColor,
+		disabled = option.disabled or false,
+	}
+
+	if option.event then
+		entry.event = option.event
+		entry.args = option.args
+	end
+
+	if option.isHeader then
+		entry.disabled = true
+	end
+
+	table.insert(menu, entry)
+end
+
+function Menu.Open(id, title, options, parentMenu)
+	if Menu.IsQbMenu() then
+		exports['qb-menu']:openMenu(options)
+		return
+	end
+
+	if Config.MenuSystem == 'ox_lib' then
+		local context = {
+			id = id,
+			title = title,
+			options = options,
+		}
+
+		if parentMenu then
+			context.menu = parentMenu
+		end
+
+		lib.registerContext(context)
+		lib.showContext(id)
+	else
+		print('No supported menu system found: ' .. Config.MenuSystem)
+	end
+end
+
+function Menu.BuildLoadoutDescription(loadout)
+	local weaponsList, ammoList = '', ''
+
+	for _, weapon in ipairs(loadout.weapons) do
+		weaponsList = weaponsList .. weapon.label .. '\n'
+	end
+
+	for _, ammo in ipairs(loadout.ammo) do
+		ammoList = ammoList .. ' (' .. ammo.amount .. ' clips)\n'
+	end
+
+	return Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList
+end
+
+function Menu.AppendLoadoutOptions(targetMenu, selectEvent)
+	for _, loadout in ipairs(Config.Loadouts) do
+		Menu.AddOption(targetMenu, {
+			title = loadout.name .. ' - $' .. loadout.price,
+			description = Menu.BuildLoadoutDescription(loadout),
+			event = selectEvent,
+			args = { loadout = loadout },
+			icon = 'fas fa-crosshairs',
+			iconColor = '#EC213A',
+		})
+	end
+end
+
+function Menu.BuildTeamSelectionMenu(confirmEvent)
+	local menu = {}
+
+	Menu.AddOption(menu, {
+		title = Lang:t('menu.team1'),
+		description = Lang:t('menu.team1_desc'),
+		event = confirmEvent,
+		args = { team = 'team1' },
+		icon = 'fas fa-users',
+		iconColor = '#3498db',
+	})
+
+	Menu.AddOption(menu, {
+		title = Lang:t('menu.team2'),
+		description = Lang:t('menu.team2_desc'),
+		event = confirmEvent,
+		args = { team = 'team2' },
+		icon = 'fas fa-users',
+		iconColor = '#e74c3c',
+	})
+
+	return menu
+end
+
 function Menu.BuildLoadoutMenu()
     local loadoutMenu = {}
 
-    for i, loadout in ipairs(Config.Loadouts) do
-        local weaponsList, ammoList = '', ''
-        for _, weapon in ipairs(loadout.weapons) do
-            weaponsList = weaponsList .. weapon.label .. '\n'
-        end
-        for _, ammo in ipairs(loadout.ammo) do
-            ammoList = ammoList .. ' (' .. ammo.amount .. ' clips)\n'
-        end
+	Menu.AppendLoadoutOptions(loadoutMenu, 'matti-airsoft:selectLoadout')
 
-        if Config.MenuSystem == 'qb-menu' then
-            table.insert(loadoutMenu, {
-                header = loadout.name .. ' - $' .. loadout.price,
-                txt = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
-                icon = 'fas fa-crosshairs',
-                params = {
-                    event = 'matti-airsoft:selectLoadout',
-                    args = { loadout = loadout },
-                },
-            })
-        elseif Config.MenuSystem == 'ox_lib' then
-            table.insert(loadoutMenu, {
-                title = loadout.name .. ' - $' .. loadout.price,
-                description = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
-                event = 'matti-airsoft:selectLoadout',
-                args = { loadout = loadout },
-                icon = 'fas fa-crosshairs',
-                iconColor = '#EC213A',
-            })
-        end
-    end
-
-    if Config.MenuSystem == 'qb-menu' then
-        table.insert(loadoutMenu, {
-            header = Lang:t('menu.random_loadout'),
-            txt = Lang:t('menu.random_loadout_txt'),
-            icon = 'fas fa-random',
-            params = { event = 'matti-airsoft:giveRandomGun' },
-        })
-    elseif Config.MenuSystem == 'ox_lib' then
-        table.insert(loadoutMenu, {
-            title = Lang:t('menu.random_loadout'),
-            description = Lang:t('menu.random_loadout_txt'),
-            event = 'matti-airsoft:giveRandomGun',
-            icon = 'fas fa-random',
-            iconColor = '#EC213A',
-        })
-    end
+	Menu.AddOption(loadoutMenu, {
+		title = Lang:t('menu.random_loadout'),
+		description = Lang:t('menu.random_loadout_txt'),
+		event = 'matti-airsoft:giveRandomGun',
+		icon = 'fas fa-random',
+		iconColor = '#EC213A',
+	})
 
     return loadoutMenu
 end
 
 function Menu.ShowLoadout()
-    local loadoutMenu = Menu.BuildLoadoutMenu()
-    
-    if Config.MenuSystem == 'qb-menu' then
-        exports['qb-menu']:openMenu(loadoutMenu)
-    elseif Config.MenuSystem == 'ox_lib' then
-        lib.registerContext({
-            id = 'matti_airsoft_loadout_menu',
-            title = Lang:t('menu.choose_loadout'),
-            options = loadoutMenu,
-        })
-        lib.showContext('matti_airsoft_loadout_menu')
-    else
-        print('No supported menu system found: ' .. Config.MenuSystem)
-    end
+	Menu.Open('matti_airsoft_loadout_menu', Lang:t('menu.choose_loadout'), Menu.BuildLoadoutMenu())
 end
 
 -- ============================================
@@ -545,25 +758,13 @@ RegisterNetEvent('matti-airsoft:openLobbyBrowser')
 AddEventHandler('matti-airsoft:openLobbyBrowser', function()
 	local browserMenu = {}
 
-	-- Create lobby option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(browserMenu, {
-			header = Lang:t('menu.create_lobby'),
-			txt = Lang:t('menu.create_lobby_desc'),
-			icon = 'fas fa-plus',
-			params = {
-				event = 'matti-airsoft:createLobbyPrompt',
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(browserMenu, {
-			title = Lang:t('menu.create_lobby'),
-			description = Lang:t('menu.create_lobby_desc'),
-			event = 'matti-airsoft:createLobbyPrompt',
-			icon = 'fas fa-plus',
-			iconColor = '#2ecc71',
-		})
-	end
+	Menu.AddOption(browserMenu, {
+		title = Lang:t('menu.create_lobby'),
+		description = Lang:t('menu.create_lobby_desc'),
+		event = 'matti-airsoft:createLobbyPrompt',
+		icon = 'fas fa-plus',
+		iconColor = '#2ecc71',
+	})
 
 	-- Get available lobbies
 	QBCore.Functions.TriggerCallback('matti-airsoft:getLobbies', function(data)
@@ -572,30 +773,20 @@ AddEventHandler('matti-airsoft:openLobbyBrowser', function()
 		
 		-- Show arena status if occupied
 		if arenaOccupied then
-			if Config.MenuSystem == 'qb-menu' then
-				table.insert(browserMenu, {
-					header = '🔴 ' .. Lang:t('menu.arena_status'),
-					txt = Lang:t('menu.arena_occupied_warning'),
-					isMenuHeader = true
-				})
-			elseif Config.MenuSystem == 'ox_lib' then
-				table.insert(browserMenu, {
-					title = '🔴 ' .. Lang:t('menu.arena_status'),
-					description = Lang:t('menu.arena_occupied_warning'),
-					icon = 'fas fa-exclamation-triangle',
-					iconColor = '#e74c3c',
-					disabled = true
-				})
-			end
+			Menu.AddOption(browserMenu, {
+				title = '🔴 ' .. Lang:t('menu.arena_status'),
+				description = Lang:t('menu.arena_occupied_warning'),
+				icon = 'fas fa-exclamation-triangle',
+				iconColor = '#e74c3c',
+				disabled = true,
+			})
 		end
 		
 		if #lobbies > 0 then
-			-- Add header for available lobbies
-			if Config.MenuSystem == 'qb-menu' then
-				table.insert(browserMenu, {
-					header = Lang:t('menu.available_lobbies'),
-					txt = '',
-					isMenuHeader = true
+			if Menu.IsQbMenu() then
+				Menu.AddOption(browserMenu, {
+					title = Lang:t('menu.available_lobbies'),
+					isHeader = true,
 				})
 			end
 
@@ -609,79 +800,34 @@ AddEventHandler('matti-airsoft:openLobbyBrowser', function()
 					lobbyDesc = lobbyDesc .. '\n🎮 ' .. Lang:t('menu.playing_in_arena')
 				end
 				
-				if Config.MenuSystem == 'qb-menu' then
-					table.insert(browserMenu, {
-						header = lobbyInfo,
-						txt = lobbyDesc,
-						icon = 'fas fa-users',
-						params = {
-							event = 'matti-airsoft:joinLobbyConfirm',
-							args = { lobbyId = lobby.id },
-						},
-					})
-				elseif Config.MenuSystem == 'ox_lib' then
-					table.insert(browserMenu, {
-						title = lobbyInfo,
-						description = lobbyDesc,
-						event = 'matti-airsoft:joinLobbyConfirm',
-						args = { lobbyId = lobby.id },
-						icon = 'fas fa-users',
-						iconColor = lobby.isInArena and '#e74c3c' or '#3498db',
-					})
-				end
+				Menu.AddOption(browserMenu, {
+					title = lobbyInfo,
+					description = lobbyDesc,
+					event = 'matti-airsoft:joinLobbyConfirm',
+					args = { lobbyId = lobby.id },
+					icon = 'fas fa-users',
+					iconColor = lobby.isInArena and '#e74c3c' or '#3498db',
+				})
 			end
 		else
-			-- No lobbies available
-			if Config.MenuSystem == 'qb-menu' then
-				table.insert(browserMenu, {
-					header = Lang:t('menu.no_lobbies'),
-					txt = Lang:t('menu.no_lobbies_desc'),
-					isMenuHeader = true
-				})
-			elseif Config.MenuSystem == 'ox_lib' then
-				table.insert(browserMenu, {
-					title = Lang:t('menu.no_lobbies'),
-					description = Lang:t('menu.no_lobbies_desc'),
-					icon = 'fas fa-info-circle',
-					iconColor = '#95a5a6',
-					disabled = true
-				})
-			end
-		end
-
-		-- Refresh button
-		if Config.MenuSystem == 'qb-menu' then
-			table.insert(browserMenu, {
-				header = Lang:t('menu.refresh'),
-				txt = Lang:t('menu.refresh_desc'),
-				icon = 'fas fa-sync',
-				params = {
-					event = 'matti-airsoft:openLobbyBrowser',
-				},
-			})
-		elseif Config.MenuSystem == 'ox_lib' then
-			table.insert(browserMenu, {
-				title = Lang:t('menu.refresh'),
-				description = Lang:t('menu.refresh_desc'),
-				event = 'matti-airsoft:openLobbyBrowser',
-				icon = 'fas fa-sync',
+			Menu.AddOption(browserMenu, {
+				title = Lang:t('menu.no_lobbies'),
+				description = Lang:t('menu.no_lobbies_desc'),
+				icon = 'fas fa-info-circle',
 				iconColor = '#95a5a6',
+				disabled = true,
 			})
 		end
 
-		-- Open the browser menu
-		if Config.MenuSystem == 'qb-menu' then
-			exports['qb-menu']:openMenu(browserMenu)
-		elseif Config.MenuSystem == 'ox_lib' then
-			lib.registerContext({
-				id = 'matti_airsoft_lobby_browser',
-				title = Lang:t('menu.lobby_browser'),
-				options = browserMenu,
-			})
-			lib.showContext('matti_airsoft_lobby_browser')
-		else
-			print('No supported menu system found: ' .. Config.MenuSystem)
-		end
+		Menu.AddOption(browserMenu, {
+			title = Lang:t('menu.refresh'),
+			description = Lang:t('menu.refresh_desc'),
+			event = 'matti-airsoft:openLobbyBrowser',
+			icon = 'fas fa-sync',
+			iconColor = '#95a5a6',
+		})
+
+		Menu.Open('matti_airsoft_lobby_browser', Lang:t('menu.lobby_browser'), browserMenu)
 	end)
 end)
 
@@ -755,12 +901,11 @@ RegisterNetEvent('matti-airsoft:openLobbyManagement', function()
 	local managementMenu = {}
 	local isHost = State.currentLobby.host == GetPlayerServerId(PlayerId())
 
-	-- Lobby info header
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(managementMenu, {
-			header = State.currentLobby.name,
-			txt = Lang:t('menu.players') .. ': ' .. Utils.TableCount(State.currentLobby.players),
-			isMenuHeader = true
+	if Menu.IsQbMenu() then
+		Menu.AddOption(managementMenu, {
+			title = State.currentLobby.name,
+			description = Lang:t('menu.players') .. ': ' .. Utils.TableCount(State.currentLobby.players),
+			isHeader = true,
 		})
 	end
 
@@ -771,162 +916,72 @@ RegisterNetEvent('matti-airsoft:openLobbyManagement', function()
 		playerListText = playerListText .. playerData.name .. hostMarker .. '\n'
 	end
 
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(managementMenu, {
-			header = Lang:t('menu.players_list'),
-			txt = playerListText,
-			icon = 'fas fa-users',
-			isMenuHeader = true
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(managementMenu, {
-			title = Lang:t('menu.players_list'),
-			description = playerListText,
-			icon = 'fas fa-users',
-			iconColor = '#3498db',
-			disabled = true
-		})
-	end
+	Menu.AddOption(managementMenu, {
+		title = Lang:t('menu.players_list'),
+		description = playerListText,
+		icon = 'fas fa-users',
+		iconColor = '#3498db',
+		disabled = true,
+	})
 
 	if isHost then
 		local currentModeText = State.currentLobby.gameMode == 'ffa' and Lang:t('menu.ffa') or Lang:t('menu.teams')
-		if Config.MenuSystem == 'qb-menu' then
-			table.insert(managementMenu, {
-				header = Lang:t('menu.game_mode'),
-				txt = Lang:t('menu.current_mode') .. ': ' .. currentModeText,
-				icon = 'fas fa-gamepad',
-				params = {
-					event = 'matti-airsoft:selectGameMode',
-				},
-			})
-		elseif Config.MenuSystem == 'ox_lib' then
-			table.insert(managementMenu, {
-				title = Lang:t('menu.game_mode'),
-				description = Lang:t('menu.current_mode') .. ': ' .. currentModeText,
-				event = 'matti-airsoft:selectGameMode',
-				icon = 'fas fa-gamepad',
-				iconColor = '#3498db',
-			})
-		end
-
-		-- Loadout selection
-		local currentLoadoutText = State.currentLobby.selectedLoadout and State.currentLobby.selectedLoadout.name or Lang:t('menu.no_loadout')
-		if Config.MenuSystem == 'qb-menu' then
-			table.insert(managementMenu, {
-				header = Lang:t('menu.select_lobby_loadout'),
-				txt = Lang:t('menu.current_loadout') .. ': ' .. currentLoadoutText,
-				icon = 'fas fa-crosshairs',
-				params = {
-					event = 'matti-airsoft:selectLobbyLoadout',
-				},
-			})
-		elseif Config.MenuSystem == 'ox_lib' then
-			table.insert(managementMenu, {
-				title = Lang:t('menu.select_lobby_loadout'),
-				description = Lang:t('menu.current_loadout') .. ': ' .. currentLoadoutText,
-				event = 'matti-airsoft:selectLobbyLoadout',
-				icon = 'fas fa-crosshairs',
-				iconColor = '#e74c3c',
-			})
-		end
-
-		-- Start game button (host only)
-		if Config.MenuSystem == 'qb-menu' then
-			table.insert(managementMenu, {
-				header = Lang:t('menu.start_game'),
-				txt = Lang:t('menu.start_game_desc'),
-				icon = 'fas fa-play',
-				params = {
-					event = 'matti-airsoft:startLobbyGame',
-				},
-			})
-		elseif Config.MenuSystem == 'ox_lib' then
-			table.insert(managementMenu, {
-				title = Lang:t('menu.start_game'),
-				description = Lang:t('menu.start_game_desc'),
-				event = 'matti-airsoft:startLobbyGame',
-				icon = 'fas fa-play',
-				iconColor = '#2ecc71',
-			})
-		end
-	else
-		-- Non-host view - show current settings
-		local currentModeText = State.currentLobby.gameMode == 'ffa' and Lang:t('menu.ffa') or Lang:t('menu.teams')
-		local currentLoadoutText = State.currentLobby.selectedLoadout and State.currentLobby.selectedLoadout.name or Lang:t('menu.no_loadout')
-		
-		if Config.MenuSystem == 'qb-menu' then
-			table.insert(managementMenu, {
-				header = Lang:t('menu.lobby_settings'),
-				txt = Lang:t('menu.game_mode') .. ': ' .. currentModeText .. '\n' .. Lang:t('menu.loadout') .. ': ' .. currentLoadoutText,
-				icon = 'fas fa-info-circle',
-				isMenuHeader = true
-			})
-		elseif Config.MenuSystem == 'ox_lib' then
-			table.insert(managementMenu, {
-				title = Lang:t('menu.lobby_settings'),
-				description = Lang:t('menu.game_mode') .. ': ' .. currentModeText .. '\n' .. Lang:t('menu.loadout') .. ': ' .. currentLoadoutText,
-				icon = 'fas fa-info-circle',
-				iconColor = '#95a5a6',
-				disabled = true
-			})
-		end
-	end
-
-	-- Team selection (for everyone in teams mode)
-	if State.currentLobby.gameMode == 'teams' then
-		if Config.MenuSystem == 'qb-menu' then
-			table.insert(managementMenu, {
-				header = Lang:t('menu.select_team'),
-				txt = Lang:t('menu.select_team_desc'),
-				icon = 'fas fa-users',
-				params = {
-					event = 'matti-airsoft:selectTeam',
-				},
-			})
-		elseif Config.MenuSystem == 'ox_lib' then
-			table.insert(managementMenu, {
-				title = Lang:t('menu.select_team'),
-				description = Lang:t('menu.select_team_desc'),
-				event = 'matti-airsoft:selectTeam',
-				icon = 'fas fa-users',
-				iconColor = '#9b59b6',
-			})
-		end
-	end
-
-	-- Leave lobby button
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(managementMenu, {
-			header = Lang:t('menu.leave_lobby'),
-			txt = Lang:t('menu.leave_lobby_desc'),
-			icon = 'fas fa-door-open',
-			params = {
-				event = 'matti-airsoft:confirmLeaveLobby',
-			},
+		Menu.AddOption(managementMenu, {
+			title = Lang:t('menu.game_mode'),
+			description = Lang:t('menu.current_mode') .. ': ' .. currentModeText,
+			event = 'matti-airsoft:selectGameMode',
+			icon = 'fas fa-gamepad',
+			iconColor = '#3498db',
 		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(managementMenu, {
-			title = Lang:t('menu.leave_lobby'),
-			description = Lang:t('menu.leave_lobby_desc'),
-			event = 'matti-airsoft:confirmLeaveLobby',
-			icon = 'fas fa-door-open',
+
+		local currentLoadoutText = State.currentLobby.selectedLoadout and State.currentLobby.selectedLoadout.name or Lang:t('menu.no_loadout')
+		Menu.AddOption(managementMenu, {
+			title = Lang:t('menu.select_lobby_loadout'),
+			description = Lang:t('menu.current_loadout') .. ': ' .. currentLoadoutText,
+			event = 'matti-airsoft:selectLobbyLoadout',
+			icon = 'fas fa-crosshairs',
 			iconColor = '#e74c3c',
 		})
+
+		Menu.AddOption(managementMenu, {
+			title = Lang:t('menu.start_game'),
+			description = Lang:t('menu.start_game_desc'),
+			event = 'matti-airsoft:startLobbyGame',
+			icon = 'fas fa-play',
+			iconColor = '#2ecc71',
+		})
+	else
+		local currentModeText = State.currentLobby.gameMode == 'ffa' and Lang:t('menu.ffa') or Lang:t('menu.teams')
+		local currentLoadoutText = State.currentLobby.selectedLoadout and State.currentLobby.selectedLoadout.name or Lang:t('menu.no_loadout')
+
+		Menu.AddOption(managementMenu, {
+			title = Lang:t('menu.lobby_settings'),
+			description = Lang:t('menu.game_mode') .. ': ' .. currentModeText .. '\n' .. Lang:t('menu.loadout') .. ': ' .. currentLoadoutText,
+			icon = 'fas fa-info-circle',
+			iconColor = '#95a5a6',
+			disabled = true,
+		})
 	end
 
-	-- Open the management menu
-	if Config.MenuSystem == 'qb-menu' then
-		exports['qb-menu']:openMenu(managementMenu)
-	elseif Config.MenuSystem == 'ox_lib' then
-		lib.registerContext({
-			id = 'matti_airsoft_lobby_management',
-			title = State.currentLobby.name,
-			options = managementMenu,
+	if State.currentLobby.gameMode == 'teams' then
+		Menu.AddOption(managementMenu, {
+			title = Lang:t('menu.select_team'),
+			description = Lang:t('menu.select_team_desc'),
+			event = 'matti-airsoft:selectTeam',
+			icon = 'fas fa-users',
+			iconColor = '#9b59b6',
 		})
-		lib.showContext('matti_airsoft_lobby_management')
-	else
-		print('No supported menu system found: ' .. Config.MenuSystem)
 	end
+
+	Menu.AddOption(managementMenu, {
+		title = Lang:t('menu.leave_lobby'),
+		description = Lang:t('menu.leave_lobby_desc'),
+		event = 'matti-airsoft:confirmLeaveLobby',
+		icon = 'fas fa-door-open',
+		iconColor = '#e74c3c',
+	})
+
+	Menu.Open('matti_airsoft_lobby_management', State.currentLobby.name, managementMenu)
 end)
 
 -- Leave lobby confirmation
@@ -940,80 +995,32 @@ RegisterNetEvent('matti-airsoft:selectGameMode')
 AddEventHandler('matti-airsoft:selectGameMode', function()
 	local gameModeMenu = {}
 
-	-- FFA option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(gameModeMenu, {
-			header = Lang:t('menu.ffa'),
-			txt = Lang:t('menu.ffa_desc'),
-			icon = 'fas fa-user',
-			params = {
-				event = 'matti-airsoft:setGameMode',
-				args = { mode = 'ffa' },
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(gameModeMenu, {
-			title = Lang:t('menu.ffa'),
-			description = Lang:t('menu.ffa_desc'),
-			event = 'matti-airsoft:setGameMode',
-			args = { mode = 'ffa' },
-			icon = 'fas fa-user',
-			iconColor = '#f39c12',
-		})
-	end
+	Menu.AddOption(gameModeMenu, {
+		title = Lang:t('menu.ffa'),
+		description = Lang:t('menu.ffa_desc'),
+		event = 'matti-airsoft:setGameMode',
+		args = { mode = 'ffa' },
+		icon = 'fas fa-user',
+		iconColor = '#f39c12',
+	})
 
-	-- Teams option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(gameModeMenu, {
-			header = Lang:t('menu.teams'),
-			txt = Lang:t('menu.teams_desc'),
-			icon = 'fas fa-users',
-			params = {
-				event = 'matti-airsoft:setGameMode',
-				args = { mode = 'teams' },
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(gameModeMenu, {
-			title = Lang:t('menu.teams'),
-			description = Lang:t('menu.teams_desc'),
-			event = 'matti-airsoft:setGameMode',
-			args = { mode = 'teams' },
-			icon = 'fas fa-users',
-			iconColor = '#9b59b6',
-		})
-	end
+	Menu.AddOption(gameModeMenu, {
+		title = Lang:t('menu.teams'),
+		description = Lang:t('menu.teams_desc'),
+		event = 'matti-airsoft:setGameMode',
+		args = { mode = 'teams' },
+		icon = 'fas fa-users',
+		iconColor = '#9b59b6',
+	})
 
-	-- Back button
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(gameModeMenu, {
-			header = Lang:t('menu.back'),
-			icon = 'fas fa-arrow-left',
-			params = {
-				event = 'matti-airsoft:openLobbyManagement',
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(gameModeMenu, {
-			title = Lang:t('menu.back'),
-			event = 'matti-airsoft:openLobbyManagement',
-			icon = 'fas fa-arrow-left',
-			iconColor = '#95a5a6',
-		})
-	end
+	Menu.AddOption(gameModeMenu, {
+		title = Lang:t('menu.back'),
+		event = 'matti-airsoft:openLobbyManagement',
+		icon = 'fas fa-arrow-left',
+		iconColor = '#95a5a6',
+	})
 
-	-- Open game mode menu
-	if Config.MenuSystem == 'qb-menu' then
-		exports['qb-menu']:openMenu(gameModeMenu)
-	elseif Config.MenuSystem == 'ox_lib' then
-		lib.registerContext({
-			id = 'matti_airsoft_gamemode_menu',
-			title = Lang:t('menu.select_game_mode'),
-			menu = 'matti_airsoft_lobby_management',
-			options = gameModeMenu,
-		})
-		lib.showContext('matti_airsoft_gamemode_menu')
-	end
+	Menu.Open('matti_airsoft_gamemode_menu', Lang:t('menu.select_game_mode'), gameModeMenu, 'matti_airsoft_lobby_management')
 end)
 
 
@@ -1030,86 +1037,24 @@ RegisterNetEvent('matti-airsoft:selectLobbyLoadout')
 AddEventHandler('matti-airsoft:selectLobbyLoadout', function()
 	local loadoutMenu = {}
 
-	-- Loop through each loadout and add it to the menu
-	for i, loadout in ipairs(Config.Loadouts) do
-		local weaponsList, ammoList = '', ''
-		for _, weapon in ipairs(loadout.weapons) do
-			weaponsList = weaponsList .. weapon.label .. '\n'
-		end
-		for _, ammo in ipairs(loadout.ammo) do
-			ammoList = ammoList .. ' (' .. ammo.amount .. ' clips)\n'
-		end
+	Menu.AppendLoadoutOptions(loadoutMenu, 'matti-airsoft:setLobbyLoadout')
 
-		if Config.MenuSystem == 'qb-menu' then
-			table.insert(loadoutMenu, {
-				header = loadout.name .. ' - $' .. loadout.price,
-				txt = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
-				icon = 'fas fa-crosshairs',
-				params = {
-					event = 'matti-airsoft:setLobbyLoadout',
-					args = { loadout = loadout },
-				},
-			})
-		elseif Config.MenuSystem == 'ox_lib' then
-			table.insert(loadoutMenu, {
-				title = loadout.name .. ' - $' .. loadout.price,
-				description = Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList,
-				event = 'matti-airsoft:setLobbyLoadout',
-				args = { loadout = loadout },
-				icon = 'fas fa-crosshairs',
-				iconColor = '#EC213A',
-			})
-		end
-	end
+	Menu.AddOption(loadoutMenu, {
+		title = Lang:t('menu.random_loadout'),
+		description = Lang:t('menu.random_loadout_txt'),
+		event = 'matti-airsoft:setRandomLobbyLoadout',
+		icon = 'fas fa-random',
+		iconColor = '#EC213A',
+	})
 
-	-- Random loadout option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(loadoutMenu, {
-			header = Lang:t('menu.random_loadout'),
-			txt = Lang:t('menu.random_loadout_txt'),
-			icon = 'fas fa-random',
-			params = { event = 'matti-airsoft:setRandomLobbyLoadout' },
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(loadoutMenu, {
-			title = Lang:t('menu.random_loadout'),
-			description = Lang:t('menu.random_loadout_txt'),
-			event = 'matti-airsoft:setRandomLobbyLoadout',
-			icon = 'fas fa-random',
-			iconColor = '#EC213A',
-		})
-	end
+	Menu.AddOption(loadoutMenu, {
+		title = Lang:t('menu.back'),
+		event = 'matti-airsoft:openLobbyManagement',
+		icon = 'fas fa-arrow-left',
+		iconColor = '#95a5a6',
+	})
 
-	-- Back button
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(loadoutMenu, {
-			header = Lang:t('menu.back'),
-			icon = 'fas fa-arrow-left',
-			params = {
-				event = 'matti-airsoft:openLobbyManagement',
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(loadoutMenu, {
-			title = Lang:t('menu.back'),
-			event = 'matti-airsoft:openLobbyManagement',
-			icon = 'fas fa-arrow-left',
-			iconColor = '#95a5a6',
-		})
-	end
-
-	-- Open loadout menu
-	if Config.MenuSystem == 'qb-menu' then
-		exports['qb-menu']:openMenu(loadoutMenu)
-	elseif Config.MenuSystem == 'ox_lib' then
-		lib.registerContext({
-			id = 'matti_airsoft_lobby_loadout_menu',
-			title = Lang:t('menu.select_lobby_loadout'),
-			menu = 'matti_airsoft_lobby_management',
-			options = loadoutMenu,
-		})
-		lib.showContext('matti_airsoft_lobby_loadout_menu')
-	end
+	Menu.Open('matti_airsoft_lobby_loadout_menu', Lang:t('menu.select_lobby_loadout'), loadoutMenu, 'matti_airsoft_lobby_management')
 end)
 
 
@@ -1154,63 +1099,7 @@ end)
 -- Team selection menu
 RegisterNetEvent('matti-airsoft:selectTeam')
 AddEventHandler('matti-airsoft:selectTeam', function()
-	local teamMenu = {}
-
-	-- Team 1 option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(teamMenu, {
-			header = Lang:t('menu.team1'),
-			txt = Lang:t('menu.team1_desc'),
-			icon = 'fas fa-users',
-			params = {
-				event = 'matti-airsoft:confirmTeamSelection',
-				args = { team = 'team1' },
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(teamMenu, {
-			title = Lang:t('menu.team1'),
-			description = Lang:t('menu.team1_desc'),
-			event = 'matti-airsoft:confirmTeamSelection',
-			args = { team = 'team1' },
-			icon = 'fas fa-users',
-			iconColor = '#3498db',
-		})
-	end
-
-	-- Team 2 option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(teamMenu, {
-			header = Lang:t('menu.team2'),
-			txt = Lang:t('menu.team2_desc'),
-			icon = 'fas fa-users',
-			params = {
-				event = 'matti-airsoft:confirmTeamSelection',
-				args = { team = 'team2' },
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(teamMenu, {
-			title = Lang:t('menu.team2'),
-			description = Lang:t('menu.team2_desc'),
-			event = 'matti-airsoft:confirmTeamSelection',
-			args = { team = 'team2' },
-			icon = 'fas fa-users',
-			iconColor = '#e74c3c',
-		})
-	end
-
-	-- Open team menu
-	if Config.MenuSystem == 'qb-menu' then
-		exports['qb-menu']:openMenu(teamMenu)
-	elseif Config.MenuSystem == 'ox_lib' then
-		lib.registerContext({
-			id = 'matti_airsoft_team_menu',
-			title = Lang:t('menu.select_team'),
-			options = teamMenu,
-		})
-		lib.showContext('matti_airsoft_team_menu')
-	end
+	Menu.Open('matti_airsoft_team_menu', Lang:t('menu.select_team'), Menu.BuildTeamSelectionMenu('matti-airsoft:confirmTeamSelection'))
 end)
 
 
@@ -1248,63 +1137,7 @@ end)
 -- Team selection before play (for non-host players)
 RegisterNetEvent('matti-airsoft:selectTeamBeforePlay')
 AddEventHandler('matti-airsoft:selectTeamBeforePlay', function()
-	local teamMenu = {}
-
-	-- Team 1 option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(teamMenu, {
-			header = Lang:t('menu.team1'),
-			txt = Lang:t('menu.team1_desc'),
-			icon = 'fas fa-users',
-			params = {
-				event = 'matti-airsoft:confirmTeamBeforePlay',
-				args = { team = 'team1' },
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(teamMenu, {
-			title = Lang:t('menu.team1'),
-			description = Lang:t('menu.team1_desc'),
-			event = 'matti-airsoft:confirmTeamBeforePlay',
-			args = { team = 'team1' },
-			icon = 'fas fa-users',
-			iconColor = '#3498db',
-		})
-	end
-
-	-- Team 2 option
-	if Config.MenuSystem == 'qb-menu' then
-		table.insert(teamMenu, {
-			header = Lang:t('menu.team2'),
-			txt = Lang:t('menu.team2_desc'),
-			icon = 'fas fa-users',
-			params = {
-				event = 'matti-airsoft:confirmTeamBeforePlay',
-				args = { team = 'team2' },
-			},
-		})
-	elseif Config.MenuSystem == 'ox_lib' then
-		table.insert(teamMenu, {
-			title = Lang:t('menu.team2'),
-			description = Lang:t('menu.team2_desc'),
-			event = 'matti-airsoft:confirmTeamBeforePlay',
-			args = { team = 'team2' },
-			icon = 'fas fa-users',
-			iconColor = '#e74c3c',
-		})
-	end
-
-	-- Open team menu
-	if Config.MenuSystem == 'qb-menu' then
-		exports['qb-menu']:openMenu(teamMenu)
-	elseif Config.MenuSystem == 'ox_lib' then
-		lib.registerContext({
-			id = 'matti_airsoft_team_select_play',
-			title = Lang:t('menu.select_team'),
-			options = teamMenu,
-		})
-		lib.showContext('matti_airsoft_team_select_play')
-	end
+	Menu.Open('matti_airsoft_team_select_play', Lang:t('menu.select_team'), Menu.BuildTeamSelectionMenu('matti-airsoft:confirmTeamBeforePlay'))
 end)
 
 

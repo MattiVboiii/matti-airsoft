@@ -10,6 +10,12 @@ Config.InventorySystem = 'ox_inventory' -- Options: 'qb-inventory' or 'ox_invent
 -- Leaderboard Settings
 Config.LeaderboardEnabled = true -- Enable/disable the kill leaderboard
 Config.LeaderboardKey = 166 -- F5 key (see https://docs.fivem.net/docs/game-references/controls/ for key codes)
+Config.ScoreboardTrackedWeapons = {
+	'WEAPON_AIRSOFTGLOCK20',
+	'WEAPON_AIRSOFTM4',
+	'WEAPON_AIRSOFTR870',
+}
+Config.ScoreboardHitGracePeriod = 5000 -- ms to allow kill credit from the last tracked airsoft hit
 
 Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'
 
@@ -94,10 +100,10 @@ Config.Loadouts = {
 	{
 		name = 'Loadout 4 (OX)',
 		weapons = {
-			{ name = 'weapon_pistol', label = 'Pistol' },
+			{ name = 'weapon_airsoftglock20', label = 'Pistol' },
 		},
 		ammo = {
-			{ name = 'ammo-9', amount = 100 },
+			{ name = 'ammo-airsoft', amount = 100 },
 		},
 		price = 100,
 	},
