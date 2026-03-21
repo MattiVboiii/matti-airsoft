@@ -23,6 +23,7 @@ local Data = {
     lobbies = {}, -- {[lobbyId] = {host, players, gameMode, loadout, name}}
     playerLobbies = {}, -- {[playerId] = lobbyId}
     playerTeams = {}, -- {[playerId] = 'team1' or 'team2'}
+    teamScores = {}, -- {[lobbyId] = {team1 = number, team2 = number}}
     recentAttackers = {}, -- {[victimId] = {attackerId, timestamp}}
     activeLobbyInArena = nil,
     nextLobbyId = 1
@@ -112,6 +113,48 @@ function Lobby.GetPlayerCount(lobby)
     return count
 end
 
+function Lobby.BroadcastToLobby(lobbyId, eventName, ...)
+    if not lobbyId or not Data.lobbies[lobbyId] then
+        return
+    end
+
+    for pid, _ in pairs(Data.lobbies[lobbyId].players) do
+        TriggerClientEvent(eventName, pid, ...)
+    end
+end
+
+function Lobby.GetTeamMembers(lobbyId)
+    local teamState = {
+        team1 = {},
+        team2 = {},
+        unassigned = {}
+    }
+
+    local lobby = lobbyId and Data.lobbies[lobbyId] or nil
+    if not lobby then
+        return teamState
+    end
+
+    for pid, playerData in pairs(lobby.players) do
+        local playerName = (playerData and playerData.name) or Utils.GetPlayerName(pid)
+        local selectedTeam = Data.playerTeams[pid]
+
+        if selectedTeam == 'team1' then
+            table.insert(teamState.team1, playerName)
+        elseif selectedTeam == 'team2' then
+            table.insert(teamState.team2, playerName)
+        else
+            table.insert(teamState.unassigned, playerName)
+        end
+    end
+
+    table.sort(teamState.team1)
+    table.sort(teamState.team2)
+    table.sort(teamState.unassigned)
+
+    return teamState
+end
+
 function Lobby.Create(playerId, lobbyName)
     local playerName = Utils.GetPlayerName(playerId)
     
@@ -190,12 +233,14 @@ function Lobby.Leave(playerId)
     
     lobby.players[playerId] = nil
     Data.playerLobbies[playerId] = nil
+    Data.playerTeams[playerId] = nil
     
     if Config.Debug then
         print(' ' .. playerName .. ' left lobby: ' .. lobbyId)
     end
     
     if Lobby.GetPlayerCount(lobby) == 0 then
+        Data.teamScores[lobbyId] = nil
         Data.lobbies[lobbyId] = nil
         if Config.Debug then
             print(' Lobby ' .. lobbyId .. ' deleted (empty)')
@@ -234,6 +279,18 @@ function Lobby.SetGameMode(playerId, mode)
     end
     
     lobby.gameMode = mode
+
+    if mode ~= 'teams' then
+        Data.teamScores[lobbyId] = nil
+        for pid, _ in pairs(lobby.players) do
+            Data.playerTeams[pid] = nil
+        end
+    else
+        Data.teamScores[lobbyId] = Data.teamScores[lobbyId] or {
+            team1 = 0,
+            team2 = 0
+        }
+    end
     
     if Config.Debug then
         print(' Lobby ' .. lobbyId .. ' game mode set to: ' .. mode)
@@ -300,6 +357,15 @@ function Lobby.StartGame(playerId)
     end
     
     Data.activeLobbyInArena = lobbyId
+
+    if lobby.gameMode == 'teams' then
+        Data.teamScores[lobbyId] = {
+            team1 = 0,
+            team2 = 0
+        }
+    else
+        Data.teamScores[lobbyId] = nil
+    end
     
     for pid, _ in pairs(lobby.players) do
         TriggerClientEvent('matti-airsoft:gameStarting', pid, lobby.selectedLoadout, lobby.gameMode)
@@ -320,16 +386,63 @@ end
 -- ============================================
 local Leaderboard = {}
 
+function Leaderboard.EnsureLobbyTeamScores(lobbyId)
+    if not lobbyId then
+        return
+    end
+
+    if not Data.teamScores[lobbyId] then
+        Data.teamScores[lobbyId] = {
+            team1 = 0,
+            team2 = 0
+        }
+    end
+end
+
+function Leaderboard.GetTeamScoreForPlayer(playerId)
+    local lobbyId = Data.playerLobbies[playerId]
+    local team = Data.playerTeams[playerId]
+
+    if not lobbyId or not team then
+        return nil
+    end
+
+    Leaderboard.EnsureLobbyTeamScores(lobbyId)
+    local lobbyScores = Data.teamScores[lobbyId]
+    return lobbyScores and lobbyScores[team] or 0
+end
+
+function Leaderboard.GetOpposingTeam(team)
+    if team == 'team1' then
+        return 'team2'
+    end
+
+    if team == 'team2' then
+        return 'team1'
+    end
+
+    return nil
+end
+
 function Leaderboard.BuildRows()
     local leaderboard = {}
 
     for playerId, stats in pairs(Data.arenaStats) do
+        local lobbyId = Data.playerLobbies[playerId]
+        local lobby = lobbyId and Data.lobbies[lobbyId] or nil
+        local isTeamsMode = lobby and lobby.gameMode == 'teams'
+        local playerTeam = isTeamsMode and Data.playerTeams[playerId] or nil
+        local lobbyTeamScores = (isTeamsMode and lobbyId and Data.teamScores[lobbyId]) or nil
+
         table.insert(leaderboard, {
             name = stats.name,
             kills = stats.kills,
             deaths = stats.deaths,
             kd = stats.deaths > 0 and (stats.kills / stats.deaths) or stats.kills,
-            team = Data.playerTeams[playerId] or nil
+            team = playerTeam,
+            teamKills = playerTeam and Leaderboard.GetTeamScoreForPlayer(playerId) or nil,
+            team1Kills = lobbyTeamScores and (lobbyTeamScores.team1 or 0) or nil,
+            team2Kills = lobbyTeamScores and (lobbyTeamScores.team2 or 0) or nil
         })
     end
 
@@ -377,14 +490,39 @@ end
 function Leaderboard.RecordHit(victimId, killerId)
     local victimName = Data.arenaStats[victimId] and Data.arenaStats[victimId].name or 'Unknown'
     local killerName = 'Unknown'
+    local victimLobbyId = Data.playerLobbies[victimId]
     
     if Data.arenaStats[victimId] then
         Data.arenaStats[victimId].deaths = Data.arenaStats[victimId].deaths + 1
     end
     
     if killerId and killerId ~= victimId and Data.arenaStats[killerId] then
-        Data.arenaStats[killerId].kills = Data.arenaStats[killerId].kills + 1
-        killerName = Data.arenaStats[killerId].name
+        local killerLobbyId = Data.playerLobbies[killerId]
+        local sharedLobbyId = (victimLobbyId and victimLobbyId == killerLobbyId) and killerLobbyId or nil
+        local lobby = sharedLobbyId and Data.lobbies[sharedLobbyId] or nil
+        local isTeamsMode = lobby and lobby.gameMode == 'teams'
+        local killerTeam = Data.playerTeams[killerId]
+        local victimTeam = Data.playerTeams[victimId]
+
+        if isTeamsMode and killerTeam and victimTeam and killerTeam == victimTeam then
+            local opposingTeam = Leaderboard.GetOpposingTeam(killerTeam)
+            if opposingTeam then
+                Leaderboard.EnsureLobbyTeamScores(sharedLobbyId)
+                Data.teamScores[sharedLobbyId][opposingTeam] = (Data.teamScores[sharedLobbyId][opposingTeam] or 0) + 1
+            end
+        else
+            Data.arenaStats[killerId].kills = Data.arenaStats[killerId].kills + 1
+            killerName = Data.arenaStats[killerId].name
+
+            if isTeamsMode and killerTeam then
+                Leaderboard.EnsureLobbyTeamScores(sharedLobbyId)
+                Data.teamScores[sharedLobbyId][killerTeam] = (Data.teamScores[sharedLobbyId][killerTeam] or 0) + 1
+            end
+        end
+    end
+
+    if killerName ~= 'Unknown' and victimLobbyId and Data.lobbies[victimLobbyId] then
+        Lobby.BroadcastToLobby(victimLobbyId, 'matti-airsoft:showKillFeed', killerName, victimName)
     end
     
     if Config.Debug then
@@ -462,6 +600,8 @@ RegisterNetEvent('matti-airsoft:setPlayerTeam', function(team)
     if Config.Debug then
         print(' Player ' .. source .. ' set to ' .. team)
     end
+
+    Lobby.BroadcastToLobby(lobbyId, 'matti-airsoft:lobbyUpdated', lobby)
     
     TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('notifications.team_selected') .. ' ' .. (team == 'team1' and Lang:t('menu.team1') or Lang:t('menu.team2')), 'success')
 end)
@@ -474,6 +614,7 @@ end)
 RegisterNetEvent('matti-airsoft:playerLeftArena', function()
     Data.recentAttackers[source] = nil
     Leaderboard.RemovePlayer(source)
+    Lobby.Leave(source)
 end)
 
 RegisterNetEvent('matti-airsoft:registerRecentAttacker', function(attackerId)
@@ -590,6 +731,20 @@ end)
 
 QBCore.Functions.CreateCallback('matti-airsoft:getPlayerTeam', function(source, cb)
     cb(Data.playerTeams[source] or nil)
+end)
+
+QBCore.Functions.CreateCallback('matti-airsoft:getLobbyTeams', function(source, cb)
+    local lobbyId = Data.playerLobbies[source]
+    if not lobbyId or not Data.lobbies[lobbyId] then
+        cb({
+            team1 = {},
+            team2 = {},
+            unassigned = {}
+        })
+        return
+    end
+
+    cb(Lobby.GetTeamMembers(lobbyId))
 end)
 
 QBCore.Functions.CreateCallback('matti-airsoft:getLobbies', function(source, cb)

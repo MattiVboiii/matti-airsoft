@@ -4,16 +4,81 @@
   box-sizing: border-box;
 }
 
+:root {
+  --accent-color: #ec213a;
+  --accent-rgb: 236, 33, 58;
+}
+
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
 }
 
-.leaderboard-container {
+.hud-stack {
   position: fixed;
   top: 50%;
   right: 10px;
   transform: translateY(-50%);
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.killfeed-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.killfeed-entry {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--accent-color);
+  background: rgba(16, 16, 24, 0.92);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  animation: killfeedSlideIn 0.2s ease-out;
+}
+
+.killfeed-entry.fade-out {
+  opacity: 0;
+  transform: translateX(40px);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.killfeed-killer {
+  color: #4caf50;
+}
+
+.killfeed-verb {
+  color: #ffffff;
+}
+
+.killfeed-victim {
+  color: var(--accent-color);
+}
+
+@keyframes killfeedSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.leaderboard-container {
+  position: relative;
   background: linear-gradient(
     135deg,
     rgba(20, 20, 30, 0.9),
@@ -22,37 +87,37 @@ body {
   border-radius: 12px;
   box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
   padding: 15px;
-  width: 320px;
-  border: 2px solid rgba(236, 33, 58, 0.5);
+  width: 100%;
+  border: 2px solid rgba(var(--accent-rgb), 0.5);
   animation: slideIn 0.3s ease-in;
 }
 
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(-50%) translateX(100%);
+    transform: translateX(100%);
   }
   to {
     opacity: 1;
-    transform: translateY(-50%) translateX(0);
+    transform: translateX(0);
   }
 }
 
 .leaderboard-header {
   text-align: center;
   margin-bottom: 12px;
-  border-bottom: 2px solid rgba(236, 33, 58, 0.7);
+  border-bottom: 2px solid rgba(var(--accent-rgb), 0.7);
   padding-bottom: 8px;
 }
 
 .leaderboard-header h1 {
-  color: #ec213a;
+  color: var(--accent-color);
   font-size: 18px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 3px;
-  text-shadow: 0 0 10px rgba(236, 33, 58, 0.5);
+  text-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5);
 }
 
 .leaderboard-header h2 {
@@ -78,7 +143,7 @@ body {
 }
 
 .leaderboard-content::-webkit-scrollbar-thumb {
-  background: #ec213a;
+  background: var(--accent-color);
   border-radius: 5px;
 }
 
@@ -88,7 +153,7 @@ table {
 }
 
 thead tr {
-  background: rgba(236, 33, 58, 0.3);
+  background: rgba(var(--accent-rgb), 0.3);
 }
 
 th {
@@ -108,7 +173,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: rgba(236, 33, 58, 0.2);
+  background: rgba(var(--accent-rgb), 0.2);
 }
 
 tbody tr.top-player {
@@ -148,7 +213,7 @@ td {
 td.rank {
   font-weight: 700;
   font-size: 13px;
-  color: #ec213a;
+  color: var(--accent-color);
 }
 
 td.rank.gold {
@@ -279,4 +344,60 @@ tbody tr.third-player.team-red-row {
   color: rgba(255, 255, 255, 0.6);
   font-style: italic;
   font-size: 11px;
+}
+
+tbody tr.team-summary-row {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+tbody tr.team-summary-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+tbody tr.team-blue-summary {
+  border-left: 3px solid #2196f3;
+}
+
+tbody tr.team-red-summary {
+  border-left: 3px solid #f44336;
+}
+
+td.team-summary-label {
+  text-align: left;
+  padding-left: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+td.team-summary-value {
+  font-weight: 700;
+  color: #ffc107;
+}
+
+tbody tr.team-summary-block-title {
+  background: rgba(var(--accent-rgb), 0.22);
+  border-top: 2px solid rgba(var(--accent-rgb), 0.65);
+}
+
+td.team-summary-block-title-cell {
+  text-align: center;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+tbody tr.team-summary-header-row {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+td.team-summary-header-cell {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
 }

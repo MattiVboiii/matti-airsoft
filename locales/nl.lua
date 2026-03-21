@@ -10,6 +10,7 @@ local Translations = {
         random_loadout_txt = 'Ga in de arena met een random loadout',
         exit_arena = 'Verlaat Arena',
         includes = 'Omvat:',
+        clips = 'magazijnen',
         -- Lobby menu
         open_lobby = 'Open Lobby',
         lobby_title = 'Airsoft Lobby',
@@ -24,6 +25,7 @@ local Translations = {
         no_lobbies_desc = 'Maak een nieuwe lobby om te spelen',
         host = 'Host',
         players = 'Spelers',
+        no_players = 'Niemand',
         players_list = 'Spelers Lijst',
         refresh = 'Ververs',
         refresh_desc = 'Ververs lobby lijst',
@@ -86,6 +88,21 @@ local Translations = {
         arena_occupied = 'Arena is momenteel bezet door een andere lobby! Wacht alsjeblieft.',
         not_teams_mode = 'Deze lobby is niet in team-modus!',
         team_selected = 'Team geselecteerd:',
+        loadout_selected = 'Je hebt de "%{loadout}" loadout geselecteerd!',
+        item_removed_in_arena = 'Niet-airsoft items zijn niet toegestaan in de arena. Je bent %{item} x%{amount} kwijt en je krijgt dit niet terug.',
+    },
+    leaderboard = {
+        title = 'AIRSOFT ARENA',
+        subtitle = 'Scorebord',
+        column_player = 'Speler',
+        column_team = 'Team',
+        team_totals = 'Team Totalen',
+        total_kills = 'Totale Kills',
+        no_players = 'Nog geen spelers',
+        team1 = 'Team 1',
+        team2 = 'Team 2',
+        no_team = 'Geen Team',
+        ffa = 'FFA',
     }
 }
 

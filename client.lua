@@ -23,6 +23,8 @@ local State = {
     debugPeds = {}
 }
 
+local allowedArenaItems = {}
+
 -- ============================================
 -- Utility Functions
 -- ============================================
@@ -82,6 +84,100 @@ end)
 -- Inventory Management
 -- ============================================
 local Inventory = {}
+
+local function NormalizeItemName(itemName)
+	if not itemName then
+		return nil
+	end
+
+	return string.lower(tostring(itemName))
+end
+
+function Inventory.BuildAllowedArenaItems()
+	allowedArenaItems = {}
+
+	for _, loadout in ipairs(Config.Loadouts or {}) do
+		for _, weapon in ipairs(loadout.weapons or {}) do
+			if weapon.name then
+				local normalizedWeaponName = NormalizeItemName(weapon.name)
+				if normalizedWeaponName then
+					allowedArenaItems[normalizedWeaponName] = true
+				end
+			end
+		end
+
+		for _, ammo in ipairs(loadout.ammo or {}) do
+			if ammo.name then
+				local normalizedAmmoName = NormalizeItemName(ammo.name)
+				if normalizedAmmoName then
+					allowedArenaItems[normalizedAmmoName] = true
+				end
+			end
+		end
+	end
+end
+
+function Inventory.RemoveDisallowedArenaItems()
+	if not Config.EnforceArenaLoadoutItemsOnly then
+		return
+	end
+
+	if not State.isInArena or not State.currentLoadout then
+		return
+	end
+
+	if Config.InventorySystem == 'qb-inventory' then
+		local items = QBCore.Functions.GetPlayerData().items or {}
+
+		for _, item in pairs(items) do
+			local normalizedItemName = NormalizeItemName(item.name)
+			if normalizedItemName and item.amount and item.amount > 0 and not allowedArenaItems[normalizedItemName] then
+				TriggerServerEvent('matti-airsoft:removeItem', item.name, item.amount)
+				Utils.SendNotification(Lang:t('notifications.item_removed_in_arena', {
+					item = item.name,
+					amount = item.amount,
+				}), 'error')
+
+				if Config.Debug then
+					print(' Removed non-airsoft item while in arena: ' .. item.name .. ' x' .. item.amount)
+				end
+			end
+		end
+	elseif Config.InventorySystem == 'ox_inventory' then
+		local items = exports.ox_inventory:GetPlayerItems() or {}
+
+		for _, item in pairs(items) do
+			local normalizedItemName = NormalizeItemName(item.name)
+			if normalizedItemName and item.count and item.count > 0 and not allowedArenaItems[normalizedItemName] then
+				TriggerServerEvent('matti-airsoft:removeItem', item.name, item.count)
+				Utils.SendNotification(Lang:t('notifications.item_removed_in_arena', {
+					item = item.name,
+					amount = item.count,
+				}), 'error')
+
+				if Config.Debug then
+					print(' Removed non-airsoft item while in arena: ' .. item.name .. ' x' .. item.count)
+				end
+			end
+		end
+	else
+		print('No supported inventory found: ' .. Config.InventorySystem)
+	end
+end
+
+function Inventory.StartArenaItemLock()
+	Citizen.CreateThread(function()
+		while true do
+			local interval = Config.ArenaItemLockIntervalMs or 1500
+			if interval < 250 then
+				interval = 250
+			end
+
+			Wait(interval)
+			Inventory.RemoveDisallowedArenaItems()
+		end
+	end)
+end
 
 function Inventory.SaveAndClear()
     local playerData = QBCore.Functions.GetPlayerData()
@@ -207,7 +303,7 @@ function Loadout.Handle(loadout)
             SetCurrentPedWeapon(PlayerPedId(), GetHashKey('WEAPON_UNARMED'), true)
             State.currentLoadout = loadout
 
-            Utils.SendNotification('You have selected the "' .. loadout.name .. '" loadout!', 'success')
+			Utils.SendNotification(Lang:t('notifications.loadout_selected', { loadout = loadout.name }), 'success')
             Player.TeleportToRandomPosition()
         else
             Utils.SendNotification(Lang:t('notifications.cannot_afford'), 'error')
@@ -506,6 +602,13 @@ end
 -- ============================================
 local Leaderboard = {}
 
+local function ApplyUiTheme()
+	SendNUIMessage({
+		action = 'setUiTheme',
+		accentColor = Config.LeaderboardAccentColor,
+	})
+end
+
 function Leaderboard.Show()
     if not Config.LeaderboardEnabled then
         return
@@ -514,10 +617,12 @@ function Leaderboard.Show()
     State.leaderboardVisible = true
     
     QBCore.Functions.TriggerCallback('matti-airsoft:getLeaderboard', function(leaderboard)
+		ApplyUiTheme()
         SendNUIMessage({
             action = 'showLeaderboard',
             show = true,
-            leaderboard = leaderboard
+			leaderboard = leaderboard,
+			accentColor = Config.LeaderboardAccentColor
         })
         SetNuiFocus(false, false)
     end)
@@ -529,6 +634,35 @@ function Leaderboard.Hide()
         action = 'showLeaderboard',
         show = false
     })
+end
+
+function Leaderboard.Toggle()
+	if not Config.LeaderboardEnabled or not State.isInArena then
+		return
+	end
+
+	if State.leaderboardVisible then
+		Leaderboard.Hide()
+	else
+		Leaderboard.Show()
+	end
+end
+
+function Leaderboard.HandleKeybind()
+	Citizen.CreateThread(function()
+		while true do
+			local waitTime = 500
+
+			if Config.LeaderboardEnabled and State.isInArena then
+				waitTime = 0
+				if IsControlJustPressed(0, Config.LeaderboardKey) then
+					Leaderboard.Toggle()
+				end
+			end
+
+			Wait(waitTime)
+		end
+	end)
 end
 
 -- ============================================
@@ -672,7 +806,7 @@ function Menu.BuildLoadoutDescription(loadout)
 	end
 
 	for _, ammo in ipairs(loadout.ammo) do
-		ammoList = ammoList .. ' (' .. ammo.amount .. ' clips)\n'
+		ammoList = ammoList .. ' (' .. ammo.amount .. ' ' .. Lang:t('menu.clips') .. ')\n'
 	end
 
 	return Lang:t('menu.includes') .. '\n' .. weaponsList .. ammoList
@@ -691,12 +825,27 @@ function Menu.AppendLoadoutOptions(targetMenu, selectEvent)
 	end
 end
 
-function Menu.BuildTeamSelectionMenu(confirmEvent)
+function Menu.BuildTeamMemberDescription(baseDescription, members)
+	local memberNames = members or {}
+	local membersLabel = Lang:t('menu.players')
+
+	if #memberNames == 0 then
+		return baseDescription .. '\n' .. membersLabel .. ': ' .. Lang:t('menu.no_players')
+	end
+
+	return baseDescription .. '\n' .. membersLabel .. ': ' .. table.concat(memberNames, ', ')
+end
+
+function Menu.BuildTeamSelectionMenu(confirmEvent, teamState)
 	local menu = {}
+	local teamData = teamState or {
+		team1 = {},
+		team2 = {},
+	}
 
 	Menu.AddOption(menu, {
 		title = Lang:t('menu.team1'),
-		description = Lang:t('menu.team1_desc'),
+		description = Menu.BuildTeamMemberDescription(Lang:t('menu.team1_desc'), teamData.team1),
 		event = confirmEvent,
 		args = { team = 'team1' },
 		icon = 'fas fa-users',
@@ -705,7 +854,7 @@ function Menu.BuildTeamSelectionMenu(confirmEvent)
 
 	Menu.AddOption(menu, {
 		title = Lang:t('menu.team2'),
-		description = Lang:t('menu.team2_desc'),
+		description = Menu.BuildTeamMemberDescription(Lang:t('menu.team2_desc'), teamData.team2),
 		event = confirmEvent,
 		args = { team = 'team2' },
 		icon = 'fas fa-users',
@@ -1099,7 +1248,9 @@ end)
 -- Team selection menu
 RegisterNetEvent('matti-airsoft:selectTeam')
 AddEventHandler('matti-airsoft:selectTeam', function()
-	Menu.Open('matti_airsoft_team_menu', Lang:t('menu.select_team'), Menu.BuildTeamSelectionMenu('matti-airsoft:confirmTeamSelection'))
+	QBCore.Functions.TriggerCallback('matti-airsoft:getLobbyTeams', function(teamState)
+		Menu.Open('matti_airsoft_team_menu', Lang:t('menu.select_team'), Menu.BuildTeamSelectionMenu('matti-airsoft:confirmTeamSelection', teamState))
+	end)
 end)
 
 
@@ -1137,7 +1288,9 @@ end)
 -- Team selection before play (for non-host players)
 RegisterNetEvent('matti-airsoft:selectTeamBeforePlay')
 AddEventHandler('matti-airsoft:selectTeamBeforePlay', function()
-	Menu.Open('matti_airsoft_team_select_play', Lang:t('menu.select_team'), Menu.BuildTeamSelectionMenu('matti-airsoft:confirmTeamBeforePlay'))
+	QBCore.Functions.TriggerCallback('matti-airsoft:getLobbyTeams', function(teamState)
+		Menu.Open('matti_airsoft_team_select_play', Lang:t('menu.select_team'), Menu.BuildTeamSelectionMenu('matti-airsoft:confirmTeamBeforePlay', teamState))
+	end)
 end)
 
 
@@ -1181,7 +1334,21 @@ RegisterNetEvent('matti-airsoft:selectLoadout', function(data)
     Loadout.Handle(data.loadout)
 end)
 
+local function HandleArenaExitCleanup()
+	if State.isInArena then
+		TriggerServerEvent('matti-airsoft:playerLeftArena')
+		State.isInArena = false
+	end
+
+	if Config.LeaderboardEnabled then
+		Leaderboard.Hide()
+	end
+
+	State.isHit = false
+end
+
 RegisterNetEvent('matti-airsoft:exitArena', function()
+	HandleArenaExitCleanup()
     Loadout.Remove()
     Inventory.Restore()
     SetEntityCoords(PlayerPedId(), Config.ReturnLocation)
@@ -1194,6 +1361,7 @@ end)
 
 RegisterNetEvent('matti-airsoft:forceExitArena', function()
     if State.airsoftZone:isPointInside(GetEntityCoords(PlayerPedId())) then
+		HandleArenaExitCleanup()
         Loadout.Remove()
         Inventory.Restore()
         SetEntityCoords(PlayerPedId(), Config.ReturnLocation)
@@ -1210,6 +1378,15 @@ RegisterNetEvent('matti-airsoft:updateLeaderboard', function(leaderboard)
     end
 end)
 
+RegisterNetEvent('matti-airsoft:showKillFeed', function(killerName, victimName)
+	ApplyUiTheme()
+	SendNUIMessage({
+		action = 'showKillFeed',
+		killer = killerName,
+		victim = victimName,
+	})
+end)
+
 RegisterNUICallback('closeLeaderboard', function(data, cb)
     cb('ok')
 end)
@@ -1218,6 +1395,28 @@ end)
 -- Initialization
 -- ============================================
 Citizen.CreateThread(function()
+	Inventory.BuildAllowedArenaItems()
+	Inventory.StartArenaItemLock()
+
+	SendNUIMessage({
+		action = 'setLeaderboardTranslations',
+		translations = {
+			title = Lang:t('leaderboard.title'),
+			subtitle = Lang:t('leaderboard.subtitle'),
+			columnPlayer = Lang:t('leaderboard.column_player'),
+			columnTeam = Lang:t('leaderboard.column_team'),
+			teamTotals = Lang:t('leaderboard.team_totals'),
+			totalKills = Lang:t('leaderboard.total_kills'),
+			noPlayers = Lang:t('leaderboard.no_players'),
+			team1 = Lang:t('leaderboard.team1'),
+			team2 = Lang:t('leaderboard.team2'),
+			noTeam = Lang:t('leaderboard.no_team'),
+			ffa = Lang:t('leaderboard.ffa'),
+		},
+	})
+
+	ApplyUiTheme()
+
     Zone.Create()
     
     State.enterPed = Peds.Spawn(
@@ -1249,5 +1448,6 @@ Citizen.CreateThread(function()
         end
     end
     
-    Combat.TrackDamage()
+	Combat.TrackDamage()
+	Leaderboard.HandleKeybind()
 end)

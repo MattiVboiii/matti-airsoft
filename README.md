@@ -97,6 +97,40 @@ Enhance realism with [Localspetsnaz's Airsoft Guns Pack](https://forum.cfx.re/t/
    ```
    </details>
 
+## 🧩 QBX + ox_inventory: `ammo-airsoft` Setup
+
+If you run QBX with `ox_inventory`, add an airsoft ammo type in `ox_inventory/data/weapons.lua` and point your airsoft weapon to it.
+
+1. In the `Weapons` table, make sure your airsoft weapon uses `ammoname = 'ammo-airsoft'`:
+
+   ```lua
+   ['WEAPON_AIRSOFTGLOCK20'] = {
+     label = 'Airsoft Glock 20',
+     weight = 0,
+     durability = 0.1,
+     ammoname = 'ammo-airsoft',
+   },
+   ```
+
+2. In the `Ammo` table, add the custom ammo entry:
+
+   ```lua
+   ['ammo-airsoft'] = {
+     label = 'Airsoft bullet',
+     weight = 1,
+   },
+   ```
+
+3. In this script's `config.lua`, use that same ammo item in your loadout:
+
+   ```lua
+   ammo = {
+     { name = 'ammo-airsoft', amount = 100 },
+   },
+   ```
+
+This keeps weapon/ammo matching consistent for QBX + `ox_inventory` airsoft loadouts.
+
 ## 🚨 Pro Tip for Police Systems
 
 Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:

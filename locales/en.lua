@@ -10,6 +10,7 @@ local Translations = {
         random_loadout_txt = 'Go in the arena with a random loadout',
         exit_arena = 'Exit Arena',
         includes = 'Includes:',
+        clips = 'clips',
         -- Lobby menu
         open_lobby = 'Open Lobby',
         lobby_title = 'Airsoft Lobby',
@@ -24,6 +25,7 @@ local Translations = {
         no_lobbies_desc = 'Create a new lobby to start playing',
         host = 'Host',
         players = 'Players',
+        no_players = 'None',
         players_list = 'Player List',
         refresh = 'Refresh',
         refresh_desc = 'Refresh lobby list',
@@ -86,6 +88,21 @@ local Translations = {
         arena_occupied = 'Arena is currently occupied by another lobby! Please wait.',
         not_teams_mode = 'This lobby is not in teams mode!',
         team_selected = 'Team selected:',
+        loadout_selected = 'You have selected the "%{loadout}" loadout!',
+        item_removed_in_arena = 'Non-airsoft items are not allowed in the arena. You lost %{item} x%{amount} and will not get it back.',
+    },
+    leaderboard = {
+        title = 'AIRSOFT ARENA',
+        subtitle = 'Leaderboard',
+        column_player = 'Player',
+        column_team = 'Team',
+        team_totals = 'Team Totals',
+        total_kills = 'Total Kills',
+        no_players = 'No players yet',
+        team1 = 'Team 1',
+        team2 = 'Team 2',
+        no_team = 'No Team',
+        ffa = 'FFA',
     }
 }
 

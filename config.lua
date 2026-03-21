@@ -6,16 +6,13 @@ Config.TargetSystem = 'ox_target' -- Options: 'qb-target' or 'ox_target'
 Config.MenuSystem = 'ox_lib' -- Options: 'qb-menu' or 'ox_lib'
 Config.NotifySystem = 'ox_lib' -- Options: 'qb-core' or 'ox_lib'
 Config.InventorySystem = 'ox_inventory' -- Options: 'qb-inventory' or 'ox_inventory'
+Config.EnforceArenaLoadoutItemsOnly = true -- Arena inventory lock: when true, players can only keep items defined in Config.Loadouts while playing in arena. Recommended to prevent players from bringing in other items into the arena.
+Config.ArenaItemLockIntervalMs = 1500 -- Don't set this too low to avoid performance issues. 
 
 -- Leaderboard Settings
 Config.LeaderboardEnabled = true -- Enable/disable the kill leaderboard
 Config.LeaderboardKey = 166 -- F5 key (see https://docs.fivem.net/docs/game-references/controls/ for key codes)
-Config.ScoreboardTrackedWeapons = {
-	'WEAPON_AIRSOFTGLOCK20',
-	'WEAPON_AIRSOFTM4',
-	'WEAPON_AIRSOFTR870',
-}
-Config.ScoreboardHitGracePeriod = 5000 -- ms to allow kill credit from the last tracked airsoft hit
+Config.LeaderboardAccentColor = '#EC213A' -- Hex color for leaderboard + killfeed accent styling in NUI
 
 Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'
 
