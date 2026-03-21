@@ -55,6 +55,12 @@ local Translations = {
         team1_desc = 'Join the blue team',
         team2 = 'Team 2 (Red)',
         team2_desc = 'Join the red team',
+        match_timer = 'Match Timer',
+        select_match_timer = 'Set Match Duration',
+        timer_input_label = 'Enter minutes',
+        current_timer = 'Current Timer',
+        minutes = 'minutes',
+        set = 'Set',
     },
     inarena = {
         shotandout = 'You have been hit and are out of the game!',
@@ -90,6 +96,10 @@ local Translations = {
         team_selected = 'Team selected:',
         loadout_selected = 'You have selected the "%{loadout}" loadout!',
         item_removed_in_arena = 'Non-airsoft items are not allowed in the arena. You lost %{item} x%{amount} and will not get it back.',
+        match_timer_set = 'Match timer set to:',
+        timer_disabled = 'No time limit',
+        invalid_timer = 'Invalid timer duration!',
+        match_time_expired = 'Match time has expired! Exiting arena...',
     },
     leaderboard = {
         title = 'AIRSOFT ARENA',

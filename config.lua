@@ -1,7 +1,7 @@
 Config = {}
 
 Config.Framework = 'qb' -- Options: 'qb' or 'ox'
-Config.Debug = true -- Enable/disable debug prints & spawn peds
+Config.Debug = false -- Enable/disable debug prints & spawn peds
 Config.TargetSystem = 'ox_target' -- Options: 'qb-target' or 'ox_target'
 Config.MenuSystem = 'ox_lib' -- Options: 'qb-menu' or 'ox_lib'
 Config.NotifySystem = 'ox_lib' -- Options: 'qb-core' or 'ox_lib'
@@ -13,6 +13,10 @@ Config.ArenaItemLockIntervalMs = 1500 -- Don't set this too low to avoid perform
 Config.LeaderboardEnabled = true -- Enable/disable the kill leaderboard
 Config.LeaderboardKey = 166 -- F5 key (see https://docs.fivem.net/docs/game-references/controls/ for key codes)
 Config.LeaderboardAccentColor = '#EC213A' -- Hex color for leaderboard + killfeed accent styling in NUI
+
+-- Match Timer Settings
+Config.MatchTimerEnabled = true -- Enable/disable the match timer feature
+Config.MaxMatchDurationMinutes = 10 -- Maximum duration for a match in minutes
 
 Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'
 

@@ -77,6 +77,52 @@ body {
   }
 }
 
+.timer-container {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    rgba(20, 20, 30, 0.95),
+    rgba(30, 30, 45, 0.95)
+  );
+  border-radius: 12px;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+  padding: 15px 20px;
+  width: 100%;
+  border: 2px solid rgba(var(--accent-rgb), 0.7);
+  animation: slideIn 0.3s ease-in;
+}
+
+.timer-content {
+  text-align: center;
+}
+
+#timer-text {
+  color: var(--accent-color);
+  font-size: 32px;
+  font-weight: 700;
+  font-family: "Courier New", monospace;
+  text-shadow: 0 0 15px rgba(var(--accent-rgb), 0.6);
+  letter-spacing: 2px;
+  display: inline-block;
+  min-width: 100px;
+}
+
+.timer-container.timer-warning #timer-text {
+  animation: pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 15px rgba(var(--accent-rgb), 0.6);
+  }
+  50% {
+    opacity: 0.7;
+    text-shadow: 0 0 25px rgba(var(--accent-rgb), 0.8);
+  }
+}
+
 .leaderboard-container {
   position: relative;
   background: linear-gradient(

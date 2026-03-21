@@ -55,6 +55,12 @@ local Translations = {
         team1_desc = 'Sluit je aan bij het blauwe team',
         team2 = 'Team 2 (Rood)',
         team2_desc = 'Sluit je aan bij het rode team',
+        match_timer = 'Match Timer',
+        select_match_timer = 'Stel Match Duur In',
+        timer_input_label = 'Voer minuten in',
+        current_timer = 'Huidige Timer',
+        minutes = 'minuten',
+        set = 'Instellen',
     },
     inarena = {
         shotandout = 'Je bent geraakt en ligt uit het spel!',
@@ -90,6 +96,10 @@ local Translations = {
         team_selected = 'Team geselecteerd:',
         loadout_selected = 'Je hebt de "%{loadout}" loadout geselecteerd!',
         item_removed_in_arena = 'Niet-airsoft items zijn niet toegestaan in de arena. Je bent %{item} x%{amount} kwijt en je krijgt dit niet terug.',
+        match_timer_set = 'Match timer ingesteld op:',
+        timer_disabled = 'Geen tijdslimiet',
+        invalid_timer = 'Ongeldige timer duur!',
+        match_time_expired = 'Match tijd is verlopen! Arena wordt verlaten...',
     },
     leaderboard = {
         title = 'AIRSOFT ARENA',

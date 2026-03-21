@@ -17,13 +17,28 @@ files({
 })
 
 client_scripts({
-	'client.lua',
 	'@PolyZone/client.lua',
 	'@PolyZone/CircleZone.lua',
+	'client/shared.lua',
+	'client/inventory.lua',
+	'client/player_entities.lua',
+	'client/loadout.lua',
+	'client/combat.lua',
+	'client/leaderboard.lua',
+	'client/zone.lua',
+	'client/menu.lua',
+	'client/events.lua',
+	'client/init.lua',
 })
 
 server_scripts({
-	'server.lua',
+	'server/shared.lua',
+	'server/lobby.lua',
+	'server/leaderboard.lua',
+	'server/events.lua',
+	'server/callbacks.lua',
+	'server/commands.lua',
+	'server/init.lua',
 })
 
 shared_scripts({

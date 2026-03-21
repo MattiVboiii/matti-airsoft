@@ -98,7 +98,57 @@ $(document).ready(function () {
     if (data.action === "showKillFeed") {
       showKillFeedEntry(data.killer, data.victim);
     }
+
+    if (data.action === "updateTimer") {
+      updateTimer(data.secondsRemaining);
+    }
+
+    if (data.action === "timerExpired") {
+      timerExpired();
+    }
+
+    if (data.action === "hideTimer") {
+      $("#timer-display").hide();
+    }
   });
+
+  // Timer functions
+  function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  function updateTimer(secondsRemaining) {
+    const timerDisplay = $("#timer-display");
+    const timerText = $("#timer-text");
+
+    if (timerDisplay.css("display") === "none") {
+      timerDisplay.show();
+    }
+
+    timerText.text(formatTime(secondsRemaining));
+
+    // Add warning animation if 60 seconds or less
+    if (secondsRemaining <= 60) {
+      timerDisplay.addClass("timer-warning");
+    } else {
+      timerDisplay.removeClass("timer-warning");
+    }
+  }
+
+  function timerExpired() {
+    const timerDisplay = $("#timer-display");
+    const timerText = $("#timer-text");
+
+    timerText.text("00:00");
+    timerDisplay.addClass("timer-warning");
+
+    setTimeout(() => {
+      timerDisplay.hide();
+      timerDisplay.removeClass("timer-warning");
+    }, 5000);
+  }
 
   function showKillFeedEntry(killer, victim) {
     if (!killer || !victim) {
