@@ -2,6 +2,20 @@ AddEventHandler('playerDropped', function()
     local src = source
 
     Data.recentAttackers[src] = nil
+    if Data.loadoutGrantState then
+        Data.loadoutGrantState[src] = nil
+    end
+    if Data.restoreCredits then
+        Data.restoreCredits[src] = nil
+    end
+    if Data.pendingArenaStatusChecks then
+        Data.pendingArenaStatusChecks[src] = nil
+        for targetId, adminId in pairs(Data.pendingArenaStatusChecks) do
+            if adminId == src then
+                Data.pendingArenaStatusChecks[targetId] = nil
+            end
+        end
+    end
 
     if Data.arenaStats[src] then
         Data.arenaStats[src] = nil

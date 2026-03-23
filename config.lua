@@ -8,6 +8,9 @@ Config.NotifySystem = 'ox_lib' -- Options: 'qb-core' or 'ox_lib'
 Config.InventorySystem = 'ox_inventory' -- Options: 'qb-inventory' or 'ox_inventory'
 Config.EnforceArenaLoadoutItemsOnly = true -- Arena inventory lock: when true, players can only keep items defined in Config.Loadouts while playing in arena. Recommended to prevent players from bringing in other items into the arena.
 Config.ArenaItemLockIntervalMs = 1500 -- Don't set this too low to avoid performance issues. 
+Config.ArenaItemWhitelist = { -- Items in this list are never removed when entering/playing in the arena
+	-- 'water',
+}
 
 -- Leaderboard Settings
 Config.LeaderboardEnabled = true -- Enable/disable the kill leaderboard
@@ -54,6 +57,7 @@ Config.SpawnLocations = {
 -- Location where the player will be teleported if hit/dead
 Config.TeleportOnHit = true
 Config.ContinuePlayingAfterDeath = true -- If true, player respawns in arena instead of being kicked out
+Config.KillerFallbackDistance = 60.0 -- Fallback distance used to resolve killer if direct attribution fails
 Config.ReturnLocation = vector3(2024.36, 2846.33, 50.26)
 
 -- Blip configuration for the airsoft zone

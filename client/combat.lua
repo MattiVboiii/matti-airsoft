@@ -118,7 +118,7 @@ function Combat.ResolveKillerId(playerPed)
     end
 
     if not killerId then
-        killerId = Combat.GetClosestPlayerServerId(25.0)
+        killerId = Combat.GetClosestPlayerServerId(Config.KillerFallbackDistance or 60.0)
         if killerId and Config.Debug then
             print(' Using closest player fallback for killer ID: ' .. tostring(killerId))
         end
