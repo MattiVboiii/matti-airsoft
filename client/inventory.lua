@@ -123,8 +123,6 @@ function Inventory.StartArenaItemLock()
 end
 
 function Inventory.SaveAndClear()
-    State.originalInventory = {}
-
     if Config.InventorySystem == 'qb-inventory' then
         local playerData = QBCore.Functions.GetPlayerData()
         local playerItems = playerData.items or {}
@@ -132,17 +130,7 @@ function Inventory.SaveAndClear()
         for _, item in pairs(playerItems) do
             local amount = item.amount or item.count or 0
             if item.name and amount > 0 and not IsWhitelistedArenaItem(item.name) then
-                local slot = item.slot
-                local metadata = item.info
-
-                State.originalInventory[#State.originalInventory + 1] = {
-                    name = item.name,
-                    amount = amount,
-                    slot = slot,
-                    metadata = metadata,
-                }
-
-                TriggerServerEvent('matti-airsoft:removeItem', item.name, amount, slot, metadata)
+                TriggerServerEvent('matti-airsoft:removeItem', item.name, amount, item.slot, item.info)
             end
         end
     elseif Config.InventorySystem == 'ox_inventory' then
@@ -151,13 +139,6 @@ function Inventory.SaveAndClear()
         for _, item in pairs(items) do
             local amount = item.count or item.amount or 0
             if item.name and amount > 0 and not IsWhitelistedArenaItem(item.name) then
-                State.originalInventory[#State.originalInventory + 1] = {
-                    name = item.name,
-                    amount = amount,
-                    slot = item.slot,
-                    metadata = item.metadata,
-                }
-
                 TriggerServerEvent('matti-airsoft:removeItem', item.name, amount, item.slot, item.metadata)
             end
         end
@@ -167,12 +148,6 @@ function Inventory.SaveAndClear()
 end
 
 function Inventory.Restore()
-    for _, item in pairs(State.originalInventory) do
-        local itemAmount = item.amount or item.count
-        if item.name and itemAmount and itemAmount > 0 then
-            TriggerServerEvent('matti-airsoft:giveItem', item.name, itemAmount, item.metadata, item.slot)
-        end
-    end
-    State.originalInventory = {}
+    TriggerServerEvent('matti-airsoft:restoreItems')
     removalNotifiedItems = {}
 end

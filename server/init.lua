@@ -5,8 +5,8 @@ AddEventHandler('playerDropped', function()
     if Data.loadoutGrantState then
         Data.loadoutGrantState[src] = nil
     end
-    if Data.restoreCredits then
-        Data.restoreCredits[src] = nil
+    if Data.savedInventories then
+        Data.savedInventories[src] = nil
     end
     if Data.pendingArenaStatusChecks then
         Data.pendingArenaStatusChecks[src] = nil

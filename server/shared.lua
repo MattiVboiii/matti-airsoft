@@ -49,7 +49,8 @@ Data = {
     teamScores = {},
     recentAttackers = {},
     activeLobbyInArena = nil,
-    nextLobbyId = 1
+    nextLobbyId = 1,
+    savedInventories = {},
 }
 
 Utils = {}

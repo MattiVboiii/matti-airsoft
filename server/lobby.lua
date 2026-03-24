@@ -174,6 +174,11 @@ function Lobby.SetGameMode(playerId, mode)
         return false
     end
 
+    local allowedModes = { ffa = true, teams = true }
+    if not allowedModes[mode] then
+        return false
+    end
+
     lobby.gameMode = mode
 
     if mode ~= 'teams' then
