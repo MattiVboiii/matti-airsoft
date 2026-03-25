@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.0.1] - 2026-03-25
+
+> **Full diff**: [`2.0.0...2.0.1`](https://github.com/MattiVboiii/matti-airsoft/compare/2.0.0...2.0.1)
+
+### ✨ New Features
+
+#### Arena Item Whitelist
+- Added `Config.ArenaItemWhitelist` — a list of item names that are **never removed** when a player enters or plays in the arena, even when `Config.EnforceArenaLoadoutItemsOnly` is enabled.
+
+#### Saved Inventories
+- Player inventories are now **saved server-side** when entering the arena and **fully restored** on exit, replacing the previous client-side approach. Restoration is now handled via a dedicated `matti-airsoft:restoreItems` server event.
+- Per-session item removal notifications are now deduplicated — each disallowed item triggers a notification only **once per arena session** instead of every lock interval.
+
+#### Configurable Killer Fallback Distance
+- Added `Config.KillerFallbackDistance` (default `60.0`) — the radius used to resolve the killer when direct hit attribution fails, replacing the previous hard-coded value of `25.0`.
+
+---
+
+### 🔧 Configuration Changes (`config.lua`)
+
+New keys added:
+
+| Key | Default | Description |
+|---|---|---|
+| `Config.ArenaItemWhitelist` | `{}` | Items never removed from players inside the arena |
+| `Config.KillerFallbackDistance` | `60.0` | Fallback search radius (in units) for killer resolution |
+
+---
+
+### 🐛 Bug Fixes & Improvements
+
+- `Utils.HandlePlayerItem` now accepts an `options` table (`metadata`, `slot`) so item metadata and slot information are preserved when adding or removing items.
+- `Inventory.SaveAndClear` correctly handles both `item.amount` and `item.count` fields and skips whitelisted items.
+- `Lobby.SetGameMode` now validates that the supplied mode is one of the allowed values (`ffa`, `teams`).
+- Admin `checkarena` command now tracks pending checks so state is properly cleaned up when the requesting admin or target player disconnects.
+- Player disconnect handler clears `loadoutGrantState`, `savedInventories`, and `pendingArenaStatusChecks` for the disconnecting player.
+- Added input-validation helpers in server-side event handlers (item name normalisation, positive-integer amount checks, and a `MAX_ITEM_EVENT_AMOUNT` cap) to prevent exploits.
+
+---
+
 ## [2.0.0] - 2026-03-21
 
 > **Full diff**: [`1.1.1...2.0.0`](https://github.com/MattiVboiii/matti-airsoft/compare/1.1.1...2.0.0)
