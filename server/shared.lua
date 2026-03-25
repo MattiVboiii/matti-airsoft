@@ -49,7 +49,8 @@ Data = {
     teamScores = {},
     recentAttackers = {},
     activeLobbyInArena = nil,
-    nextLobbyId = 1
+    nextLobbyId = 1,
+    savedInventories = {},
 }
 
 Utils = {}
@@ -94,21 +95,25 @@ function Utils.GetPlayerName(playerId)
     return 'Player ' .. playerId
 end
 
-function Utils.HandlePlayerItem(playerId, itemName, amount, action)
+function Utils.HandlePlayerItem(playerId, itemName, amount, action, options)
     local player = Utils.GetPlayer(playerId)
     if not player then return false end
 
+    options = options or {}
+    local metadata = options.metadata
+    local slot = options.slot
+
     if Config.InventorySystem == 'ox_inventory' then
         if action == 'add' then
-            return exports.ox_inventory:AddItem(playerId, itemName, amount)
+            return exports.ox_inventory:AddItem(playerId, itemName, amount, metadata, slot)
         elseif action == 'remove' then
-            return exports.ox_inventory:RemoveItem(playerId, itemName, amount)
+            return exports.ox_inventory:RemoveItem(playerId, itemName, amount, metadata, slot)
         end
     else
         if action == 'add' then
-            return player.Functions.AddItem(itemName, amount)
+            return player.Functions.AddItem(itemName, amount, slot, metadata)
         elseif action == 'remove' then
-            return player.Functions.RemoveItem(itemName, amount)
+            return player.Functions.RemoveItem(itemName, amount, slot)
         end
     end
 

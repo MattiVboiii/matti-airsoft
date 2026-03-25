@@ -9,7 +9,6 @@ State = {
     currentLobby = nil,
     lastAttacker = nil,
     lastTrackedHit = nil,
-    originalInventory = {},
     enterPed = nil,
     exitPed = nil,
     debugPeds = {}

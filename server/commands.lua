@@ -21,6 +21,8 @@ QBCore.Commands.Add(
             if playerId then
                 local targetPlayer = QBCore.Functions.GetPlayer(playerId)
                 if targetPlayer then
+                    Data.pendingArenaStatusChecks = Data.pendingArenaStatusChecks or {}
+                    Data.pendingArenaStatusChecks[playerId] = source
                     TriggerClientEvent('matti-airsoft:checkIfInArena', playerId, source)
                 else
                     TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.invalid_player_id'), 'error')
