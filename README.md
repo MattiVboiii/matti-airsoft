@@ -64,8 +64,11 @@ Enhance realism with [Localspetsnaz's Airsoft Guns Pack](https://forum.cfx.re/t/
 <details>
 <summary>📖 Installation Guide</summary>
 
-1. Add guns to your server resources and start them in `server.cfg`
-2. In `qb-core/shared/items.lua`:
+Add guns to your server resources and start them in `server.cfg`
+
+## QBCore Setup
+
+1. In `qb-core/shared/items.lua`:
    ```lua
    weapon_airsoftglock20 = {
      name = 'weapon_airsoftglock20',
@@ -79,7 +82,7 @@ Enhance realism with [Localspetsnaz's Airsoft Guns Pack](https://forum.cfx.re/t/
      description = 'Airsoft Glock 20'
    },
    ```
-3. In `qb-core/shared/weapons.lua`:
+2. In `qb-core/shared/weapons.lua`:
    ```lua
    [`weapon_airsoftglock20`] = {
      name = 'weapon_airsoftglock20',
@@ -89,54 +92,36 @@ Enhance realism with [Localspetsnaz's Airsoft Guns Pack](https://forum.cfx.re/t/
      damagereason = 'Hit by a BB'
    },
    ```
-4. In `qb-weapons/config.lua` (Durability section):
+3. In `qb-weapons/config.lua` (Durability section):
    ```lua
    weapon_airsoftglock20 = 0.05,
    ```
-5. In `qb-weapons/client/weapdraw.lua`:
+4. In `qb-weapons/client/weapdraw.lua`:
 
    ```lua
    'WEAPON_AIRSOFTGLOCK20',
    ```
 
-      </details>
+## Ox_Inventory Setup
 
-      <details>
-   <summary>🧩 QBX + ox_inventory: `ammo-airsoft` Setup</summary>
-
-If you run QBX with `ox_inventory`, add an airsoft ammo type in `ox_inventory/data/weapons.lua` and point your airsoft weapon to it.
-
-1. In the `Weapons` table, make sure your airsoft weapon uses `ammoname = 'ammo-airsoft'`:
-
+1. In `ox_inventory/data/weapons.lua` (Weapons section)
    ```lua
    ['WEAPON_AIRSOFTGLOCK20'] = {
-     label = 'Airsoft Glock 20',
-     weight = 0,
-     durability = 0.1,
-     ammoname = 'ammo-airsoft',
+			label = 'Airsoft Glock 20',
+			weight = 0,
+			durability = 0.1,
+			ammoname = 'ammo-airsoft',
    },
    ```
 
-2. In the `Ammo` table, add the custom ammo entry:
-
+2. OPTIONAL - In `ox_inventory/data/weapons.lua` (Ammo section)
    ```lua
    ['ammo-airsoft'] = {
-     label = 'Airsoft bullet',
-     weight = 1,
-   },
+			label = 'Airsoft bullet',
+			weight = 1,
+	},
    ```
-
-3. In this script's `config.lua`, use that same ammo item in your loadout:
-
-   ```lua
-   ammo = {
-     { name = 'ammo-airsoft', amount = 100 },
-   },
-   ```
-
-This keeps weapon/ammo matching consistent for QBX + `ox_inventory` airsoft loadouts.
-
-   </details>
+      </details>
 
 ## 🚨 Pro Tip for Police Systems
 
@@ -163,7 +148,7 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 
 - If you don't follow this README, some things might not work as intended. I will not provide any support for custom modifications, you will have to figure it out yourself.
 
-- If you have any questions about the default setup, feel free to ask. If you encounter any bugs, please report them [here](https://github.com/MattiVboiii/matti-airsoft/issues) with a video.
+- If you have any questions about the default setup, feel free to ask. If you encounter any bugs, please report them [here](https://github.com/MattiVboiii/matti-airsoft/issues).
 
 - Will I add support for ESX? No. I have no interest in supporting ESX and will not add compatibility for it. I will only support QBCore, QBox & OXCore (still WIP).
 
@@ -172,5 +157,3 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 - Keep in mind that I made this script for fun and to learn, not to create a perfect product. If you want to contribute or help out, feel free to do so, PR's are always welcome!
 
 - The V2 of this script I believe will be the last major update, after that I will only add minor features, fix bugs and performance improvements.
-
-#### Last updated & tested on: 21/03/2026 - QBCore
