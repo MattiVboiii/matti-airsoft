@@ -1,11 +1,11 @@
 Config = {}
 
-Config.Framework = 'qbx' -- Options: 'qb', 'ox' or 'qbx' 
+Config.Framework = 'qb' -- Options: 'qb', 'ox' or 'qbx' 
 Config.Debug = true -- Enable/disable debug prints & spawn peds
-Config.TargetSystem = 'ox_target' -- Options: 'qb-target' or 'ox_target'
-Config.MenuSystem = 'ox_lib' -- Options: 'qb-menu' or 'ox_lib'
-Config.NotifySystem = 'ox_lib' -- Options: 'qb-core' or 'ox_lib'
-Config.InventorySystem = 'ox_inventory' -- Options: 'qb-inventory' or 'ox_inventory'
+Config.TargetSystem = 'qb-target' -- Options: 'qb-target' or 'ox_target'
+Config.MenuSystem = 'qb-menu' -- Options: 'qb-menu' or 'ox_lib'
+Config.NotifySystem = 'qb-core' -- Options: 'qb-core' or 'ox_lib'
+Config.InventorySystem = 'qb-inventory' -- Options: 'qb-inventory' or 'ox_inventory'
 Config.EnforceArenaLoadoutItemsOnly = true -- Arena inventory lock: when true, players can only keep items defined in Config.Loadouts while playing in arena. Recommended to prevent players from bringing in other items into the arena.
 Config.ArenaItemLockIntervalMs = 1500 -- Don't set this too low to avoid performance issues. 
 Config.ArenaItemWhitelist = { -- Items in this list are never removed when entering/playing in the arena
@@ -100,7 +100,7 @@ Config.Loadouts = {
 	{
 		name = 'Loadout 1',
 		weapons = {
-			{ name = 'weapon_airsoftglock20', label = 'Pistol' },
+			{ name = 'weapon_pistol', label = 'Pistol' },
 		},
 		ammo = {
 			{ name = 'pistol_ammo', amount = 10 },

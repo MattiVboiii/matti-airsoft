@@ -44,16 +44,35 @@ local function OpenArenaAwarePrimaryInventory()
 end
 
 local function RegisterArenaInventoryOverride()
-    if Config.InventorySystem ~= 'ox_inventory' then
+    if Config.InventorySystem == 'ox_inventory' then
+        RegisterCommand('+inv', function()
+            OpenArenaAwarePrimaryInventory()
+        end, false)
+
+        RegisterCommand('-inv', function()
+        end, false)
         return
     end
 
-    RegisterCommand('+inv', function()
-        OpenArenaAwarePrimaryInventory()
-    end, false)
+    if Config.InventorySystem ~= 'qb-inventory' then
+        return
+    end
 
-    RegisterCommand('-inv', function()
-    end, false)
+    -- qb-inventory checks inv_busy server-side before opening the inventory command.
+    -- Force-close one tick later so this always wins even if qb-inventory opens first.
+    RegisterNetEvent('qb-inventory:client:openInventory', function()
+        if not State.isInArena then
+            return
+        end
+
+        NotifyArenaInventoryBlocked()
+
+        CreateThread(function()
+            Wait(0)
+            TriggerEvent('qb-inventory:client:closeInv')
+            SetNuiFocus(false, false)
+        end)
+    end)
 end
 
 local function NormalizeItemName(itemName)
