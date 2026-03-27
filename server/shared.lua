@@ -2,7 +2,7 @@ if not lib then
     error('❌ ox_lib is required but not installed! Make sure you have ox_lib in your resources folder.')
 end
 
-local currentVersion = GetResourceMetadata(GetCurrentResourceName(), 'version')
+local currentVersion = GetResourceMetadata(GetCurrentResourceName(), 'version') or '0.0.0'
 
 local function compareVersions(v1, v2)
     local parts1 = {v1:match("(%d+)%.(%d+)%.(%d+)")}
@@ -19,17 +19,22 @@ end
 
 lib.versionCheck('MattiVboiii/matti-airsoft')
 
+local function PrintStartupVersion(remoteVersion)
+    if remoteVersion and compareVersions(currentVersion, remoteVersion) then
+        print('^3[matti-airsoft]^7 Warning: Local version ' .. currentVersion .. ' is newer than remote version ' .. remoteVersion)
+        return
+    end
+
+    print('^2[matti-airsoft]^7 Script loaded v' .. currentVersion .. ' - Version check passed')
+end
+
 -- Fetch remote version from GitHub
 PerformHttpRequest('https://raw.githubusercontent.com/MattiVboiii/matti-airsoft/main/fxmanifest.lua', function(code, result, headers)
     if code == 200 then
         local remoteVersion = result:match("version%(%'([%d%.]+)%'%)")
-        if remoteVersion and compareVersions(currentVersion, remoteVersion) then
-            print('^3[matti-airsoft]^7 ⚠️ Warning: Local version ' .. currentVersion .. ' is newer than remote version ' .. remoteVersion)
-        else
-            print('^2[matti-airsoft]^7 Script loaded v' .. currentVersion .. ' - Version check passed')
-        end
+        PrintStartupVersion(remoteVersion)
     else
-        print('^2[matti-airsoft]^7 Script loaded v' .. currentVersion .. ' - Version check passed')
+        PrintStartupVersion(nil)
     end
 end, 'GET')
 
@@ -37,8 +42,10 @@ QBCore = nil
 
 if Config.Framework == 'ox' then
     OxCore = exports.ox_core:GetCoreObject()
-else
+elseif Config.Framework == 'qb' or Config.Framework == 'qbx' then
     QBCore = exports['qb-core']:GetCoreObject()
+else
+    print('^1[matti-airsoft]^7 ERROR: Unsupported framework: ' .. tostring(Config.Framework))
 end
 
 Data = {

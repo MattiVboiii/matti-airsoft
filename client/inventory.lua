@@ -10,13 +10,13 @@ local function NotifyArenaInventoryBlocked()
         return
     end
 
-    inventoryNotifyCooldownUntil = currentTime + 1500
     lib.notify({
         title = 'Airsoft Arena',
         description = 'You cannot open your full inventory inside the arena.',
         type = 'error',
         duration = 4000
     })
+    inventoryNotifyCooldownUntil = currentTime + 1500
 end
 
 local function OpenArenaAwarePrimaryInventory()
@@ -75,16 +75,8 @@ local function RegisterArenaInventoryOverride()
     end)
 end
 
-local function NormalizeItemName(itemName)
-    if not itemName then
-        return nil
-    end
-
-    return string.lower(tostring(itemName))
-end
-
 local function IsWhitelistedArenaItem(itemName)
-    local normalizedItemName = NormalizeItemName(itemName)
+    local normalizedItemName = SharedUtils.NormalizeItemName(itemName)
     if not normalizedItemName then
         return false
     end
@@ -99,7 +91,7 @@ function Inventory.BuildAllowedArenaItems()
     for _, loadout in ipairs(Config.Loadouts or {}) do
         for _, weapon in ipairs(loadout.weapons or {}) do
             if weapon.name then
-                local normalizedWeaponName = NormalizeItemName(weapon.name)
+                local normalizedWeaponName = SharedUtils.NormalizeItemName(weapon.name)
                 if normalizedWeaponName then
                     allowedArenaItems[normalizedWeaponName] = true
                 end
@@ -108,7 +100,7 @@ function Inventory.BuildAllowedArenaItems()
 
         for _, ammo in ipairs(loadout.ammo or {}) do
             if ammo.name then
-                local normalizedAmmoName = NormalizeItemName(ammo.name)
+                local normalizedAmmoName = SharedUtils.NormalizeItemName(ammo.name)
                 if normalizedAmmoName then
                     allowedArenaItems[normalizedAmmoName] = true
                 end
@@ -117,7 +109,7 @@ function Inventory.BuildAllowedArenaItems()
     end
 
     for _, itemName in ipairs(Config.ArenaItemWhitelist or {}) do
-        local normalizedItemName = NormalizeItemName(itemName)
+        local normalizedItemName = SharedUtils.NormalizeItemName(itemName)
         if normalizedItemName then
             whitelistedArenaItems[normalizedItemName] = true
             allowedArenaItems[normalizedItemName] = true
@@ -139,13 +131,13 @@ function Inventory.RemoveDisallowedArenaItems()
         local items = QBCore.Functions.GetPlayerData().items or {}
 
         for _, item in pairs(items) do
-            local normalizedItemName = NormalizeItemName(item.name)
+            local normalizedItemName = SharedUtils.NormalizeItemName(item.name)
             if normalizedItemName and item.amount and item.amount > 0 and not allowedArenaItems[normalizedItemName] then
                 TriggerServerEvent('matti-airsoft:removeItem', item.name, item.amount)
                 if not removalNotifiedItems[normalizedItemName] then
                     removalNotifiedItems[normalizedItemName] = true
                     Utils.SendNotification(Lang:t('notifications.item_removed_in_arena', {
-                        item = item.name,
+                        item = SharedUtils.TrimDisplayText(item.name, 50),
                         amount = item.amount,
                     }), 'error')
                 end
@@ -159,13 +151,13 @@ function Inventory.RemoveDisallowedArenaItems()
         local items = exports.ox_inventory:GetPlayerItems() or {}
 
         for _, item in pairs(items) do
-            local normalizedItemName = NormalizeItemName(item.name)
+            local normalizedItemName = SharedUtils.NormalizeItemName(item.name)
             if normalizedItemName and item.count and item.count > 0 and not allowedArenaItems[normalizedItemName] then
                 TriggerServerEvent('matti-airsoft:removeItem', item.name, item.count)
                 if not removalNotifiedItems[normalizedItemName] then
                     removalNotifiedItems[normalizedItemName] = true
                     Utils.SendNotification(Lang:t('notifications.item_removed_in_arena', {
-                        item = item.name,
+                        item = SharedUtils.TrimDisplayText(item.name, 50),
                         amount = item.count,
                     }), 'error')
                 end

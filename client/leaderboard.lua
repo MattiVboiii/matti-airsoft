@@ -1,5 +1,14 @@
 Leaderboard = {}
 
+local function SendLeaderboardVisibility(show, rows)
+    SendNUIMessage({
+        action = 'showLeaderboard',
+        show = show,
+        leaderboard = rows,
+        accentColor = Config.LeaderboardAccentColor
+    })
+end
+
 function Leaderboard.SetCachedRows(rows)
     State.cachedLeaderboardRows = rows or {}
 end
@@ -25,22 +34,14 @@ function Leaderboard.Show()
     QBCore.Functions.TriggerCallback('matti-airsoft:getLeaderboard', function(leaderboard)
         Leaderboard.SetCachedRows(leaderboard)
         Leaderboard.ApplyUiTheme()
-        SendNUIMessage({
-            action = 'showLeaderboard',
-            show = true,
-            leaderboard = leaderboard,
-            accentColor = Config.LeaderboardAccentColor
-        })
+        SendLeaderboardVisibility(true, leaderboard)
         SetNuiFocus(false, false)
     end)
 end
 
 function Leaderboard.Hide()
     State.leaderboardVisible = false
-    SendNUIMessage({
-        action = 'showLeaderboard',
-        show = false
-    })
+    SendLeaderboardVisibility(false)
 end
 
 function Leaderboard.HideFinalOnExit()

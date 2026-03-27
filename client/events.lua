@@ -1,90 +1,6 @@
-local function NormalizeModeId(mode)
-    if type(mode) ~= 'string' then
-        return nil
-    end
-
-    local normalized = string.lower(mode)
-    if normalized == '' then
-        return nil
-    end
-
-    return normalized
-end
-
-local function GetConfiguredGameModes()
-    local modes = {}
-
-    for _, mode in ipairs(Config.GameModes or {}) do
-        if type(mode) == 'table' then
-            local modeId = NormalizeModeId(mode.id)
-            if modeId and not modes[modeId] then
-                modes[modeId] = {
-                    id = modeId,
-                    label = mode.label,
-                    description = mode.description,
-                    icon = mode.icon,
-                    iconColor = mode.iconColor,
-                    teamBased = mode.teamBased == true,
-                }
-            end
-        elseif type(mode) == 'string' then
-            local modeId = NormalizeModeId(mode)
-            if modeId and not modes[modeId] then
-                modes[modeId] = {
-                    id = modeId,
-                    label = 'menu.' .. modeId,
-                    description = 'menu.' .. modeId .. '_desc',
-                    icon = modeId == 'teams' and 'fas fa-users' or 'fas fa-user',
-                    iconColor = modeId == 'teams' and '#9b59b6' or '#f39c12',
-                    teamBased = modeId == 'teams',
-                }
-            end
-        end
-    end
-
-    if next(modes) == nil then
-        modes.ffa = {
-            id = 'ffa',
-            label = 'menu.ffa',
-            description = 'menu.ffa_desc',
-            icon = 'fas fa-user',
-            iconColor = '#f39c12',
-            teamBased = false,
-        }
-        modes.teams = {
-            id = 'teams',
-            label = 'menu.teams',
-            description = 'menu.teams_desc',
-            icon = 'fas fa-users',
-            iconColor = '#9b59b6',
-            teamBased = true,
-        }
-    end
-
-    return modes
-end
-
-local function GetOrderedModeIds()
-    local orderedIds = {}
-
-    for _, mode in ipairs(Config.GameModes or {}) do
-        if type(mode) == 'table' and NormalizeModeId(mode.id) then
-            table.insert(orderedIds, NormalizeModeId(mode.id))
-        elseif type(mode) == 'string' and NormalizeModeId(mode) then
-            table.insert(orderedIds, NormalizeModeId(mode))
-        end
-    end
-
-    if #orderedIds == 0 then
-        orderedIds = { 'ffa', 'teams' }
-    end
-
-    return orderedIds
-end
-
 local function GetModeLabel(mode)
-    local modeId = NormalizeModeId(mode)
-    local modeConfig = modeId and GetConfiguredGameModes()[modeId] or nil
+    local modeId = SharedUtils.NormalizeModeId(mode)
+    local modeConfig = modeId and SharedUtils.GetConfiguredGameModes()[modeId] or nil
     local labelKey = modeConfig and modeConfig.label or nil
 
     if labelKey then
@@ -99,9 +15,7 @@ local function GetModeLabel(mode)
 end
 
 local function IsTeamBasedMode(mode)
-    local modeId = NormalizeModeId(mode)
-    local modeConfig = modeId and GetConfiguredGameModes()[modeId] or nil
-    return modeConfig and modeConfig.teamBased == true or false
+    return SharedUtils.IsTeamBasedMode(mode)
 end
 
 local function IsDeathmatchEnabled(lobby)
@@ -199,31 +113,17 @@ end)
 
 RegisterNetEvent('matti-airsoft:createLobbyPrompt')
 AddEventHandler('matti-airsoft:createLobbyPrompt', function()
-    if Config.MenuSystem == 'ox_lib' then
-        local input = lib.inputDialog(Lang:t('menu.create_lobby'), {
-            { type = 'input', label = Lang:t('menu.lobby_name'), placeholder = Lang:t('menu.lobby_name_placeholder'), required = true }
-        })
+    local lobbyName = Menu.ShowSingleInput({
+        title = Lang:t('menu.create_lobby'),
+        submitText = Lang:t('menu.create'),
+        label = Lang:t('menu.lobby_name'),
+        placeholder = Lang:t('menu.lobby_name_placeholder'),
+        type = 'input',
+        required = true,
+    })
 
-        if input then
-            TriggerServerEvent('matti-airsoft:createLobby', input[1])
-        end
-    else
-        local dialog = exports['qb-input']:ShowInput({
-            header = Lang:t('menu.create_lobby'),
-            submitText = Lang:t('menu.create'),
-            inputs = {
-                {
-                    text = Lang:t('menu.lobby_name'),
-                    name = 'lobbyname',
-                    type = 'text',
-                    isRequired = true
-                }
-            }
-        })
-
-        if dialog then
-            TriggerServerEvent('matti-airsoft:createLobby', dialog.lobbyname)
-        end
+    if lobbyName then
+        TriggerServerEvent('matti-airsoft:createLobby', lobbyName)
     end
 end)
 
@@ -369,9 +269,9 @@ end)
 RegisterNetEvent('matti-airsoft:selectGameMode')
 AddEventHandler('matti-airsoft:selectGameMode', function()
     local gameModeMenu = {}
-    local modes = GetConfiguredGameModes()
+    local modes = SharedUtils.GetConfiguredGameModes()
 
-    for _, modeId in ipairs(GetOrderedModeIds()) do
+    for _, modeId in ipairs(SharedUtils.GetOrderedModeIds()) do
         local modeConfig = modes[modeId]
         if modeConfig then
             Menu.AddOption(gameModeMenu, {
@@ -452,55 +352,29 @@ end)
 
 RegisterNetEvent('matti-airsoft:openMatchTimerInput')
 AddEventHandler('matti-airsoft:openMatchTimerInput', function()
-    if Config.MenuSystem == 'ox_lib' then
-        local input = lib.inputDialog(Lang:t('menu.select_match_timer'), {
-            { 
-                type = 'number',
-                label = Lang:t('menu.timer_input_label'),
-                placeholder = '5',
-                min = 1,
-                max = Config.MaxMatchDurationMinutes,
-                required = true
-            }
-        })
+    local inputValue = Menu.ShowSingleInput({
+        title = Lang:t('menu.select_match_timer'),
+        submitText = Lang:t('menu.set'),
+        label = Lang:t('menu.timer_input_label'),
+        placeholder = '5',
+        type = 'number',
+        min = 1,
+        max = Config.MaxMatchDurationMinutes,
+        required = true,
+    })
 
-        if input and input[1] then
-            local minutes = tonumber(input[1])
-            if minutes and minutes >= 1 and minutes <= Config.MaxMatchDurationMinutes then
-                TriggerServerEvent('matti-airsoft:setMatchTimer', minutes)
-                Utils.SendNotification(Lang:t('notifications.match_timer_set') .. ' ' .. minutes .. ' ' .. Lang:t('menu.minutes'), 'success')
-                Wait(500)
-                TriggerEvent('matti-airsoft:openLobbyManagement')
-            else
-                Utils.SendNotification(Lang:t('notifications.invalid_timer') .. ' (1-' .. Config.MaxMatchDurationMinutes .. ')', 'error')
-            end
-        end
+    if not inputValue then
+        return
+    end
+
+    local minutes = tonumber(inputValue)
+    if minutes and minutes >= 1 and minutes <= Config.MaxMatchDurationMinutes then
+        TriggerServerEvent('matti-airsoft:setMatchTimer', minutes)
+        Utils.SendNotification(Lang:t('notifications.match_timer_set') .. ' ' .. minutes .. ' ' .. Lang:t('menu.minutes'), 'success')
+        Wait(500)
+        TriggerEvent('matti-airsoft:openLobbyManagement')
     else
-        -- Fallback for qb-menu system
-        local dialog = exports['qb-input']:ShowInput({
-            header = Lang:t('menu.select_match_timer'),
-            submitText = Lang:t('menu.set'),
-            inputs = {
-                {
-                    text = Lang:t('menu.timer_input_label'),
-                    name = 'minutes',
-                    type = 'number',
-                    isRequired = true
-                }
-            }
-        })
-
-        if dialog and dialog.minutes then
-            local minutes = tonumber(dialog.minutes)
-            if minutes and minutes >= 1 and minutes <= Config.MaxMatchDurationMinutes then
-                TriggerServerEvent('matti-airsoft:setMatchTimer', minutes)
-                Utils.SendNotification(Lang:t('notifications.match_timer_set') .. ' ' .. minutes .. ' ' .. Lang:t('menu.minutes'), 'success')
-                Wait(500)
-                TriggerEvent('matti-airsoft:openLobbyManagement')
-            else
-                Utils.SendNotification(Lang:t('notifications.invalid_timer') .. ' (1-' .. Config.MaxMatchDurationMinutes .. ')', 'error')
-            end
-        end
+        Utils.SendNotification(Lang:t('notifications.invalid_timer') .. ' (1-' .. Config.MaxMatchDurationMinutes .. ')', 'error')
     end
 end)
 

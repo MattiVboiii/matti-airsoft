@@ -9,6 +9,10 @@ function Combat.GetAttributionGraceMs()
     return Config.ScoreboardHitGracePeriod or 5000
 end
 
+function Combat.GetKillerFallbackDistance()
+    return Config.KillerFallbackDistance or 60.0
+end
+
 function Combat.IsTrackedWeapon(weaponHash)
     return weaponHash and trackedWeaponHashes[weaponHash] == true
 end
@@ -118,7 +122,7 @@ function Combat.ResolveKillerId(playerPed)
     end
 
     if not killerId then
-        killerId = Combat.GetClosestPlayerServerId(Config.KillerFallbackDistance or 60.0)
+        killerId = Combat.GetClosestPlayerServerId(Combat.GetKillerFallbackDistance())
         if killerId and Config.Debug then
             print(' Using closest player fallback for killer ID: ' .. tostring(killerId))
         end
@@ -209,13 +213,12 @@ function Combat.CheckHitStatus()
                             print(' Starting revive logic. Was stunned: ' .. tostring(wasStunned))
                         end
 
-                        local deathmatchEnabled = nil
-                        if State.currentLobby and type(State.currentLobby.deathmatchEnabled) == 'boolean' then
-                            deathmatchEnabled = State.currentLobby.deathmatchEnabled
-                        elseif type(Config.DeathmatchEnabledByDefault) == 'boolean' then
+                        local deathmatchEnabled = Config.ContinuePlayingAfterDeath
+                        if type(Config.DeathmatchEnabledByDefault) == 'boolean' then
                             deathmatchEnabled = Config.DeathmatchEnabledByDefault
-                        else
-                            deathmatchEnabled = Config.ContinuePlayingAfterDeath
+                        end
+                        if State.currentLobby then
+                            deathmatchEnabled = State.currentLobby.deathmatchEnabled == true
                         end
 
                         if Config.TeleportOnHit then

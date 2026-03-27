@@ -159,6 +159,11 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 - [ox_lib](https://github.com/overextended/ox_lib) - For version checking
 - [PolyZone](https://github.com/mkafrin/PolyZone) - Zone management
 
+## ⚙️ Config Notes
+
+- `Config.MaxItemEventAmount` sets a server-side hard cap for client-triggered item amount events.
+- Internal shared helpers now live in `shared/utils.lua` and are loaded via `fxmanifest.lua`.
+
 ## ⚠️ Disclaimer(s)
 
 - If you don't follow this README, some things might not work as intended. I will not provide any support for custom modifications, you will have to figure it out yourself.

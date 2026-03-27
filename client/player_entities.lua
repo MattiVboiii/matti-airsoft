@@ -3,6 +3,10 @@ Peds = {}
 Blip = {}
 
 function Player.TeleportToRandomPosition()
+    if not Config.SpawnLocations or #Config.SpawnLocations == 0 then
+        return
+    end
+
     local randomCoord = Config.SpawnLocations[math.random(1, #Config.SpawnLocations)]
     SetEntityCoords(PlayerPedId(), randomCoord)
 end
@@ -31,9 +35,10 @@ function Peds.Spawn(modelHash, coords, event, icon, label)
             distance = 2.5,
         })
     elseif Config.TargetSystem == 'ox_target' then
+        local targetName = 'airsoft_menu_' .. tostring(event or 'default')
         exports.ox_target:addLocalEntity(ped, {
             {
-                name = 'airsoft_menu',
+                name = targetName,
                 label = label,
                 onSelect = function()
                     TriggerEvent(event)

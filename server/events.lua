@@ -1,16 +1,22 @@
-local function NormalizeItemName(itemName)
-    if not itemName then
-        return nil
+local MAX_ITEM_EVENT_AMOUNT = Config.MaxItemEventAmount or 2000000000
+
+local function ValidateItemRequest(itemName, amount)
+    if type(itemName) ~= 'string' or itemName == '' then
+        return false, nil, nil
     end
 
-    return string.lower(tostring(itemName))
-end
+    local isValidAmount, normalizedAmount = SharedUtils.ValidatePositiveWholeNumber(amount, MAX_ITEM_EVENT_AMOUNT)
+    if not isValidAmount then
+        return false, nil, nil
+    end
 
-local function IsPositiveWholeNumber(value)
-    return type(value) == 'number' and value > 0 and value == math.floor(value)
-end
+    local normalizedItemName = SharedUtils.NormalizeItemName(itemName)
+    if not normalizedItemName then
+        return false, nil, nil
+    end
 
-local MAX_ITEM_EVENT_AMOUNT = 2000000000
+    return true, normalizedItemName, normalizedAmount
+end
 
 local function GetPlayerArenaLobby(playerId)
     local lobbyId = Data.playerLobbies[playerId]
@@ -41,14 +47,14 @@ local function BuildLoadoutGrants(loadout)
     end
 
     for _, weapon in ipairs(loadout.weapons or {}) do
-        local normalizedName = NormalizeItemName(weapon.name)
+        local normalizedName = SharedUtils.NormalizeItemName(weapon.name)
         if normalizedName then
             grants.weapons[normalizedName] = (grants.weapons[normalizedName] or 0) + 1
         end
     end
 
     for _, ammo in ipairs(loadout.ammo or {}) do
-        local normalizedName = NormalizeItemName(ammo.name)
+        local normalizedName = SharedUtils.NormalizeItemName(ammo.name)
         local ammoAmount = tonumber(ammo.amount) or 0
         if normalizedName and ammoAmount > 0 then
             grants.ammo[normalizedName] = (grants.ammo[normalizedName] or 0) + ammoAmount
@@ -79,19 +85,19 @@ local function RefillMissingLoadoutAmmo(playerId, loadout)
 end
 
 local function IsLoadoutItem(loadout, itemName)
-    local normalizedName = NormalizeItemName(itemName)
+    local normalizedName = SharedUtils.NormalizeItemName(itemName)
     if not loadout or not normalizedName then
         return false
     end
 
     for _, weapon in ipairs(loadout.weapons or {}) do
-        if NormalizeItemName(weapon.name) == normalizedName then
+        if SharedUtils.NormalizeItemName(weapon.name) == normalizedName then
             return true
         end
     end
 
     for _, ammo in ipairs(loadout.ammo or {}) do
-        if NormalizeItemName(ammo.name) == normalizedName then
+        if SharedUtils.NormalizeItemName(ammo.name) == normalizedName then
             return true
         end
     end
@@ -211,7 +217,8 @@ end)
 
 RegisterNetEvent('matti-airsoft:setMatchTimer', function(minutes)
     if Lobby.SetMatchTimer(source, minutes) then
-        local timerText = minutes == 0 and Lang:t('notifications.timer_disabled') or (minutes .. ' ' .. Lang:t('menu.minutes'))
+        local normalizedMinutes = tonumber(minutes) or 0
+        local timerText = normalizedMinutes == 0 and Lang:t('notifications.timer_disabled') or (normalizedMinutes .. ' ' .. Lang:t('menu.minutes'))
         TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('notifications.match_timer_set') .. ' ' .. timerText, 'success')
     end
 end)
@@ -343,7 +350,7 @@ RegisterServerEvent('matti-airsoft:giveWeapon', function(weaponName)
         return
     end
 
-    local normalizedWeaponName = NormalizeItemName(weaponName)
+    local normalizedWeaponName = SharedUtils.NormalizeItemName(weaponName)
     local lobby = GetPlayerArenaLobby(source)
     if not lobby or not lobby.selectedLoadout then
         return
@@ -357,17 +364,8 @@ RegisterServerEvent('matti-airsoft:giveWeapon', function(weaponName)
 end)
 
 RegisterServerEvent('matti-airsoft:giveItem', function(itemName, amount, metadata, slot)
-    if type(itemName) ~= 'string' or itemName == '' then
-        return
-    end
-
-    local normalizedItemName = NormalizeItemName(itemName)
-    local normalizedAmount = tonumber(amount)
-    if not IsPositiveWholeNumber(normalizedAmount) then
-        return
-    end
-
-    if normalizedAmount > MAX_ITEM_EVENT_AMOUNT then
+    local isValidRequest, normalizedItemName, normalizedAmount = ValidateItemRequest(itemName, amount)
+    if not isValidRequest then
         return
     end
 
@@ -421,16 +419,8 @@ RegisterServerEvent('matti-airsoft:removeWeapon', function(weaponName)
 end)
 
 RegisterServerEvent('matti-airsoft:removeItem', function(itemName, amount, slot, metadata)
-    if type(itemName) ~= 'string' or itemName == '' then
-        return
-    end
-
-    local normalizedAmount = tonumber(amount)
-    if not IsPositiveWholeNumber(normalizedAmount) then
-        return
-    end
-
-    if normalizedAmount > MAX_ITEM_EVENT_AMOUNT then
+    local isValidRequest, _, normalizedAmount = ValidateItemRequest(itemName, amount)
+    if not isValidRequest then
         return
     end
 

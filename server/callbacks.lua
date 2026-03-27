@@ -5,16 +5,22 @@ QBCore.Functions.CreateCallback('matti-airsoft:canAffordLoadout', function(sourc
         return
     end
 
+    local normalizedPrice = tonumber(price) or 0
+    if normalizedPrice <= 0 then
+        cb(true)
+        return
+    end
+
     if Config.Framework == 'ox' then
         local money = player.getAccount('money').money
-        if money >= price then
-            player.removeMoney(price, 'Airsoft Loadout')
+        if money >= normalizedPrice then
+            player.removeMoney(normalizedPrice, 'Airsoft Loadout')
             cb(true)
         else
             cb(false)
         end
     else
-        if player.Functions.RemoveMoney('cash', price, 'airsoft') then
+        if player.Functions.RemoveMoney('cash', normalizedPrice, 'airsoft') then
             cb(true)
         else
             cb(false)

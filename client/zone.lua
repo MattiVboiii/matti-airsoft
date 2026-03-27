@@ -49,7 +49,8 @@ function Zone.IsPlayerInsideArena()
             maxZ = math.max(maxZ, pointZ + halfThickness)
         end
 
-        return coords.z >= minZ and coords.z <= maxZ and IsPointInsidePolygon(coords, points)
+        local zTolerance = 0.1
+        return coords.z >= (minZ - zTolerance) and coords.z <= (maxZ + zTolerance) and IsPointInsidePolygon(coords, points)
     end
 
     return false

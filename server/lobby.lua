@@ -1,68 +1,20 @@
 Lobby = {}
 
-local function NormalizeModeId(mode)
-    if type(mode) ~= 'string' then
-        return nil
-    end
-
-    local normalized = string.lower(mode)
-    if normalized == '' then
-        return nil
-    end
-
-    return normalized
-end
-
-local function GetConfiguredGameModes()
-    local modes = {}
-
-    for _, mode in ipairs(Config.GameModes or {}) do
-        if type(mode) == 'table' then
-            local modeId = NormalizeModeId(mode.id)
-            if modeId and not modes[modeId] then
-                modes[modeId] = {
-                    teamBased = mode.teamBased == true
-                }
-            end
-        elseif type(mode) == 'string' then
-            local modeId = NormalizeModeId(mode)
-            if modeId and not modes[modeId] then
-                modes[modeId] = {
-                    teamBased = modeId == 'teams'
-                }
-            end
-        end
-    end
-
-    if next(modes) == nil then
-        modes.ffa = { teamBased = false }
-        modes.teams = { teamBased = true }
-    end
-
-    return modes
-end
-
 function Lobby.IsAllowedGameMode(mode)
-    local modeId = NormalizeModeId(mode)
+    local modeId = SharedUtils.NormalizeModeId(mode)
     if not modeId then
         return false
     end
 
-    return GetConfiguredGameModes()[modeId] ~= nil
+    return SharedUtils.GetConfiguredGameModes()[modeId] ~= nil
 end
 
 function Lobby.IsTeamBasedMode(mode)
-    local modeId = NormalizeModeId(mode)
-    if not modeId then
-        return false
-    end
-
-    local modeConfig = GetConfiguredGameModes()[modeId]
-    return modeConfig and modeConfig.teamBased == true or false
+    return SharedUtils.IsTeamBasedMode(mode)
 end
 
 function Lobby.GetDefaultGameMode()
-    local configuredDefault = NormalizeModeId(Config.DefaultGameMode)
+    local configuredDefault = SharedUtils.NormalizeModeId(Config.DefaultGameMode)
     if configuredDefault and Lobby.IsAllowedGameMode(configuredDefault) then
         return configuredDefault
     end
@@ -71,7 +23,7 @@ function Lobby.GetDefaultGameMode()
         return 'ffa'
     end
 
-    local fallbackModes = GetConfiguredGameModes()
+    local fallbackModes = SharedUtils.GetConfiguredGameModes()
     for modeId, _ in pairs(fallbackModes) do
         return modeId
     end
@@ -95,6 +47,17 @@ function Lobby.BroadcastToLobby(lobbyId, eventName, ...)
     for pid, _ in pairs(Data.lobbies[lobbyId].players) do
         TriggerClientEvent(eventName, pid, ...)
     end
+end
+
+function Lobby.EnsureTeamScores(lobbyId)
+    if not lobbyId then
+        return
+    end
+
+    Data.teamScores[lobbyId] = Data.teamScores[lobbyId] or {
+        team1 = 0,
+        team2 = 0
+    }
 end
 
 function Lobby.GetTeamMembers(lobbyId)
@@ -255,7 +218,7 @@ function Lobby.SetGameMode(playerId, mode)
         return false
     end
 
-    local normalizedMode = NormalizeModeId(mode)
+    local normalizedMode = SharedUtils.NormalizeModeId(mode)
     if not normalizedMode or not Lobby.IsAllowedGameMode(normalizedMode) then
         return false
     end
@@ -268,10 +231,7 @@ function Lobby.SetGameMode(playerId, mode)
             Data.playerTeams[pid] = nil
         end
     else
-        Data.teamScores[lobbyId] = Data.teamScores[lobbyId] or {
-            team1 = 0,
-            team2 = 0
-        }
+        Lobby.EnsureTeamScores(lobbyId)
     end
 
     if Config.Debug then
@@ -356,16 +316,16 @@ function Lobby.SetMatchTimer(playerId, minutes)
         return false
     end
 
-    -- Validate timer (must be between 1 and max minutes)
-    if minutes < 1 or minutes > Config.MaxMatchDurationMinutes then
+    local normalizedMinutes = tonumber(minutes)
+    if not normalizedMinutes or normalizedMinutes < 1 or normalizedMinutes > Config.MaxMatchDurationMinutes then
         TriggerClientEvent('matti-airsoft:sendNotification', playerId, Lang:t('notifications.invalid_timer'), 'error')
         return false
     end
 
-    lobby.matchTimer = minutes * 60 -- Convert to seconds
+    lobby.matchTimer = normalizedMinutes * 60 -- Convert to seconds
 
     if Config.Debug then
-        print(' Lobby ' .. lobbyId .. ' timer set to: ' .. minutes .. ' minutes (' .. lobby.matchTimer .. ' seconds)')
+        print(' Lobby ' .. lobbyId .. ' timer set to: ' .. normalizedMinutes .. ' minutes (' .. lobby.matchTimer .. ' seconds)')
     end
 
     for pid, _ in pairs(lobby.players) do
@@ -403,10 +363,8 @@ function Lobby.StartGame(playerId)
     Data.activeLobbyInArena = lobbyId
 
     if Lobby.IsTeamBasedMode(lobby.gameMode) then
-        Data.teamScores[lobbyId] = {
-            team1 = 0,
-            team2 = 0
-        }
+        Data.teamScores[lobbyId] = nil
+        Lobby.EnsureTeamScores(lobbyId)
     else
         Data.teamScores[lobbyId] = nil
     end

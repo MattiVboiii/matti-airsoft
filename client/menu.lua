@@ -70,6 +70,46 @@ function Menu.Open(id, title, options, parentMenu)
     end
 end
 
+function Menu.ShowSingleInput(options)
+    if not options then
+        return nil
+    end
+
+    if Config.MenuSystem == 'ox_lib' then
+        local input = lib.inputDialog(options.title, {
+            {
+                type = options.type or 'input',
+                label = options.label,
+                placeholder = options.placeholder,
+                required = options.required ~= false,
+                min = options.min,
+                max = options.max,
+            }
+        })
+
+        if input and input[1] ~= nil then
+            return input[1]
+        end
+
+        return nil
+    end
+
+    local dialog = exports['qb-input']:ShowInput({
+        header = options.title,
+        submitText = options.submitText or Lang:t('menu.set'),
+        inputs = {
+            {
+                text = options.label,
+                name = 'value',
+                type = options.type == 'number' and 'number' or 'text',
+                isRequired = options.required ~= false,
+            }
+        }
+    })
+
+    return dialog and dialog.value or nil
+end
+
 function Menu.BuildLoadoutDescription(loadout)
     local weaponsList, ammoList = '', ''
 

@@ -21,7 +21,7 @@ QBCore.Commands.Add(
         else
             local playerId = tonumber(args[1]) or source
             if playerId then
-                local targetPlayer = QBCore.Functions.GetPlayer(playerId)
+                local targetPlayer = Utils.GetPlayer(playerId)
                 if targetPlayer then
                     Data.pendingArenaStatusChecks = Data.pendingArenaStatusChecks or {}
                     Data.pendingArenaStatusChecks[playerId] = source

@@ -1,22 +1,26 @@
+local function BuildLeaderboardTranslations()
+    return {
+        title = Lang:t('leaderboard.title'),
+        subtitle = Lang:t('leaderboard.subtitle'),
+        columnPlayer = Lang:t('leaderboard.column_player'),
+        columnTeam = Lang:t('leaderboard.column_team'),
+        teamTotals = Lang:t('leaderboard.team_totals'),
+        totalKills = Lang:t('leaderboard.total_kills'),
+        noPlayers = Lang:t('leaderboard.no_players'),
+        team1 = Lang:t('leaderboard.team1'),
+        team2 = Lang:t('leaderboard.team2'),
+        noTeam = Lang:t('leaderboard.no_team'),
+        ffa = Lang:t('leaderboard.ffa'),
+    }
+end
+
 Citizen.CreateThread(function()
     Inventory.BuildAllowedArenaItems()
     Inventory.StartArenaItemLock()
 
     SendNUIMessage({
         action = 'setLeaderboardTranslations',
-        translations = {
-            title = Lang:t('leaderboard.title'),
-            subtitle = Lang:t('leaderboard.subtitle'),
-            columnPlayer = Lang:t('leaderboard.column_player'),
-            columnTeam = Lang:t('leaderboard.column_team'),
-            teamTotals = Lang:t('leaderboard.team_totals'),
-            totalKills = Lang:t('leaderboard.total_kills'),
-            noPlayers = Lang:t('leaderboard.no_players'),
-            team1 = Lang:t('leaderboard.team1'),
-            team2 = Lang:t('leaderboard.team2'),
-            noTeam = Lang:t('leaderboard.no_team'),
-            ffa = Lang:t('leaderboard.ffa'),
-        },
+        translations = BuildLeaderboardTranslations(),
     })
 
     Leaderboard.ApplyUiTheme()

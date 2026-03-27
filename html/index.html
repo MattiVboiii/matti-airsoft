@@ -9,13 +9,18 @@
   </head>
   <body>
     <div class="hud-stack">
-      <div id="killfeed" class="killfeed-container"></div>
+      <div id="killfeed" class="killfeed-container" aria-live="polite"></div>
       <div id="timer-display" class="timer-container" style="display: none">
         <div class="timer-content">
           <span id="timer-text">10:00</span>
         </div>
       </div>
-      <div id="leaderboard" class="leaderboard-container" style="display: none">
+      <div
+        id="leaderboard"
+        class="leaderboard-container"
+        style="display: none"
+        aria-live="polite"
+      >
         <div class="leaderboard-header">
           <h1 id="leaderboard-title">🎯 AIRSOFT ARENA</h1>
           <h2 id="leaderboard-subtitle">Leaderboard</h2>
@@ -70,6 +75,7 @@
             id="final-scoreboard-close"
             type="button"
             class="final-scoreboard-close-button"
+            aria-label="Close final scoreboard"
           >
             Close
           </button>

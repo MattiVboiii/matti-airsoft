@@ -7,10 +7,11 @@
 :root {
   --accent-color: #ec213a;
   --accent-rgb: 236, 33, 58;
+  --hud-font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--hud-font-family);
   overflow: hidden;
 }
 
@@ -177,6 +178,8 @@ body {
 .leaderboard-content {
   max-height: 500px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-color) rgba(255, 255, 255, 0.1);
 }
 
 .leaderboard-content::-webkit-scrollbar {

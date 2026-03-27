@@ -25,36 +25,42 @@ AddEventHandler('playerDropped', function()
     end
 end)
 
+local function TickActiveLobbyTimer(activeLobbyId)
+    local lobby = Data.lobbies[activeLobbyId]
+    if not lobby then
+        return
+    end
+
+    if not lobby.matchTimer or lobby.matchTimer <= 0 then
+        return
+    end
+
+    lobby.matchTimer = lobby.matchTimer - 1
+    Lobby.BroadcastToLobby(activeLobbyId, 'matti-airsoft:updateTimer', lobby.matchTimer)
+
+    if lobby.matchTimer > 0 then
+        return
+    end
+
+    lobby.matchTimer = 0
+    Lobby.BroadcastToLobby(activeLobbyId, 'matti-airsoft:matchTimeExpired')
+
+    if Config.Debug then
+        print(' Match time expired in lobby: ' .. activeLobbyId)
+    end
+
+    Data.activeLobbyInArena = nil
+end
+
 -- Match Timer Thread
 if Config.MatchTimerEnabled then
     Citizen.CreateThread(function()
         while true do
             Wait(1000) -- Update every second
-            
+
             local activeLobbyId = Data.activeLobbyInArena
             if activeLobbyId and Data.lobbies[activeLobbyId] then
-                local lobby = Data.lobbies[activeLobbyId]
-                
-                -- Only count down if timer is enabled (> 0)
-                if lobby.matchTimer and lobby.matchTimer > 0 then
-                    lobby.matchTimer = lobby.matchTimer - 1
-                    
-                    -- Broadcast timer update to all players in the lobby
-                    Lobby.BroadcastToLobby(activeLobbyId, 'matti-airsoft:updateTimer', lobby.matchTimer)
-                    
-                    -- End match when timer reaches 0
-                    if lobby.matchTimer <= 0 then
-                        lobby.matchTimer = 0
-                        Lobby.BroadcastToLobby(activeLobbyId, 'matti-airsoft:matchTimeExpired')
-                        
-                        if Config.Debug then
-                            print(' Match time expired in lobby: ' .. activeLobbyId)
-                        end
-                        
-                        -- Reset arena state
-                        Data.activeLobbyInArena = nil
-                    end
-                end
+                TickActiveLobbyTimer(activeLobbyId)
             end
         end
     end)

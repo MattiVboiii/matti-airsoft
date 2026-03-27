@@ -25,6 +25,10 @@ $(document).ready(function () {
       return color.toUpperCase();
     }
 
+    console.warn(
+      `[matti-airsoft] Invalid accent color "${value}", using default`,
+    );
+
     return defaultAccentColor;
   }
 
@@ -61,6 +65,13 @@ $(document).ready(function () {
   }
 
   applyStaticTranslations();
+
+  function resetArenaHud() {
+    $("#killfeed").empty();
+    $("#leaderboard").hide();
+    $("#timer-display").hide().removeClass("timer-warning");
+    $("#timer-text").text("10:00");
+  }
 
   // Listen for messages from the Lua client
   window.addEventListener("message", function (event) {
@@ -123,10 +134,7 @@ $(document).ready(function () {
     }
 
     if (data.action === "clearArenaHud") {
-      $("#killfeed").empty();
-      $("#leaderboard").hide();
-      $("#timer-display").hide().removeClass("timer-warning");
-      $("#timer-text").text("10:00");
+      resetArenaHud();
     }
 
     if (data.action === "hideTimer") {
@@ -342,7 +350,7 @@ $(document).ready(function () {
     }
   }
 
-  // Function to escape HTML to prevent XSS
+  // Escape dynamic text content before injecting into HTML templates.
   function escapeHtml(text) {
     text = String(text ?? "");
     const map = {

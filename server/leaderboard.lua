@@ -88,7 +88,7 @@ function Leaderboard.BuildRows()
     for playerId, stats in pairs(Data.arenaStats) do
         local lobbyId = Data.playerLobbies[playerId] or Data.arenaStatLobbies[playerId]
         local lobby = lobbyId and Data.lobbies[lobbyId] or nil
-        local isTeamsMode = lobby and lobby.gameMode == 'teams'
+        local isTeamsMode = lobby and Lobby.IsTeamBasedMode(lobby.gameMode)
         local playerTeam = isTeamsMode and Data.playerTeams[playerId] or nil
         local lobbyTeamScores = (isTeamsMode and lobbyId and Data.teamScores[lobbyId]) or nil
 
@@ -180,19 +180,33 @@ function Leaderboard.RemovePlayer(playerId, options)
 end
 
 function Leaderboard.RecordHit(victimId, killerId)
-    local victimName = Data.arenaStats[victimId] and Data.arenaStats[victimId].name or 'Unknown'
+    if not Data.arenaStats[victimId] then
+        Data.arenaStats[victimId] = {
+            name = Utils.GetPlayerName(victimId),
+            kills = 0,
+            deaths = 0
+        }
+    end
+
+    local victimName = Data.arenaStats[victimId].name or 'Unknown'
     local killerName = 'Unknown'
     local victimLobbyId = Data.playerLobbies[victimId]
 
-    if Data.arenaStats[victimId] then
-        Data.arenaStats[victimId].deaths = Data.arenaStats[victimId].deaths + 1
-    end
+    Data.arenaStats[victimId].deaths = Data.arenaStats[victimId].deaths + 1
 
-    if killerId and killerId ~= victimId and Data.arenaStats[killerId] then
+    if killerId and killerId ~= victimId then
+        if not Data.arenaStats[killerId] then
+            Data.arenaStats[killerId] = {
+                name = Utils.GetPlayerName(killerId),
+                kills = 0,
+                deaths = 0
+            }
+        end
+
         local killerLobbyId = Data.playerLobbies[killerId]
         local sharedLobbyId = (victimLobbyId and victimLobbyId == killerLobbyId) and killerLobbyId or nil
         local lobby = sharedLobbyId and Data.lobbies[sharedLobbyId] or nil
-        local isTeamsMode = lobby and lobby.gameMode == 'teams'
+        local isTeamsMode = lobby and Lobby.IsTeamBasedMode(lobby.gameMode)
         local killerTeam = Data.playerTeams[killerId]
         local victimTeam = Data.playerTeams[victimId]
 

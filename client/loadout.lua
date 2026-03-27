@@ -1,15 +1,38 @@
 Loadout = {}
 
+local function GetCurrentAmmoCount(itemName)
+    if Config.InventorySystem == 'qb-inventory' then
+        local items = (QBCore.Functions.GetPlayerData() or {}).items or {}
+        for _, item in pairs(items) do
+            if item.name == itemName and item.amount and item.amount > 0 then
+                return item.amount
+            end
+        end
+
+        return 0
+    end
+
+    if Config.InventorySystem == 'ox_inventory' then
+        return exports.ox_inventory:Search('count', itemName) or 0
+    end
+
+    return 0
+end
+
 function Loadout.Handle(loadout)
+    if not loadout then
+        return
+    end
+
     QBCore.Functions.TriggerCallback('matti-airsoft:canAffordLoadout', function(canAfford)
         if canAfford then
             Inventory.SaveAndClear()
 
-            for _, weapon in ipairs(loadout.weapons) do
+            for _, weapon in ipairs(loadout.weapons or {}) do
                 TriggerServerEvent('matti-airsoft:giveWeapon', weapon.name)
             end
 
-            for _, ammo in ipairs(loadout.ammo) do
+            for _, ammo in ipairs(loadout.ammo or {}) do
                 TriggerServerEvent('matti-airsoft:giveItem', ammo.name, ammo.amount)
             end
 
@@ -34,19 +57,8 @@ function Loadout.Remove()
             TriggerServerEvent('matti-airsoft:removeWeapon', weapon.name)
         end
 
-        for _, ammo in ipairs(loadout.ammo) do
-            local currentAmmo = 0
-            if Config.InventorySystem == 'qb-inventory' then
-                local items = QBCore.Functions.GetPlayerData().items
-                for _, item in pairs(items) do
-                    if item.name == ammo.name and item.amount > 0 then
-                        currentAmmo = item.amount
-                        break
-                    end
-                end
-            elseif Config.InventorySystem == 'ox_inventory' then
-                currentAmmo = exports.ox_inventory:Search('count', ammo.name)
-            end
+        for _, ammo in ipairs(loadout.ammo or {}) do
+            local currentAmmo = GetCurrentAmmoCount(ammo.name)
 
             if currentAmmo > 0 then
                 TriggerServerEvent('matti-airsoft:removeItem', ammo.name, currentAmmo)
