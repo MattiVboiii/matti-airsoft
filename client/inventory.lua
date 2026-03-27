@@ -2,6 +2,59 @@ Inventory = {}
 
 local removalNotifiedItems = {}
 local whitelistedArenaItems = {}
+local inventoryNotifyCooldownUntil = 0
+
+local function NotifyArenaInventoryBlocked()
+    local currentTime = GetGameTimer()
+    if currentTime < inventoryNotifyCooldownUntil then
+        return
+    end
+
+    inventoryNotifyCooldownUntil = currentTime + 1500
+    lib.notify({
+        title = 'Airsoft Arena',
+        description = 'You cannot open your full inventory inside the arena.',
+        type = 'error',
+        duration = 4000
+    })
+end
+
+local function OpenArenaAwarePrimaryInventory()
+    if State.isInArena then
+        NotifyArenaInventoryBlocked()
+        return
+    end
+
+    if cache.vehicle then
+        return exports.ox_inventory:openInventory('glovebox', { netid = NetworkGetNetworkIdFromEntity(cache.vehicle) })
+    end
+
+    local closest = lib.points.getClosestPoint()
+    local currentInstance = LocalPlayer.state.instance
+
+    if closest and closest.currentDistance < 1.2 and (not closest.instance or closest.instance == currentInstance) then
+        if closest.inv == 'crafting' then
+            return exports.ox_inventory:openInventory('crafting', { id = closest.id, index = closest.index })
+        elseif closest.inv ~= 'license' and closest.inv ~= 'policeevidence' then
+            return exports.ox_inventory:openInventory(closest.inv or 'drop', { id = closest.invId, type = closest.type })
+        end
+    end
+
+    return exports.ox_inventory:openInventory()
+end
+
+local function RegisterArenaInventoryOverride()
+    if Config.InventorySystem ~= 'ox_inventory' then
+        return
+    end
+
+    RegisterCommand('+inv', function()
+        OpenArenaAwarePrimaryInventory()
+    end, false)
+
+    RegisterCommand('-inv', function()
+    end, false)
+end
 
 local function NormalizeItemName(itemName)
     if not itemName then
@@ -151,3 +204,11 @@ function Inventory.Restore()
     TriggerServerEvent('matti-airsoft:restoreItems')
     removalNotifiedItems = {}
 end
+
+RegisterArenaInventoryOverride()
+
+RegisterNetEvent('matti-airsoft:arenaStateChanged', function(isInArena)
+    if Config.Debug and isInArena then
+        print('Player is inside arena, enforcing inventory restrictions.')
+    end
+end)

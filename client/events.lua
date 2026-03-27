@@ -544,28 +544,5 @@ RegisterNetEvent('matti-airsoft:matchTimeExpired', function()
     TriggerEvent('matti-airsoft:exitArena')
 end)
 
--- Prevent dropping/giving airsoft items
-if Config.InventorySystem == 'ox_inventory' then
-    -- ox_inventory client-side callbacks
-    exports.ox_inventory:weaponDropStart(GetCurrentResourceName(), function(weaponName, ammo)
-        -- Check all player items and prevent dropping airsoft weapons
-        local items = exports.ox_inventory:GetPlayerItems()
-        for _, item in pairs(items) do
-            if item.name == weaponName and item.metadata and item.metadata._airsoftItem then
-                Utils.SendNotification('Airsoft weapons cannot be dropped', 'error')
-                return false
-            end
-        end
-        return true
-    end)
-elseif Config.InventorySystem == 'qb-inventory' then
-    -- For qb-inventory, add client-side protection via TriggerCallback
-    AddEventHandler('matti-airsoft:preventItemDrop', function(itemData)
-        if itemData and itemData.info and itemData.info._airsoftItem then
-            Utils.SendNotification('Airsoft items cannot be dropped', 'error')
-            return false
-        end
-        return true
-    end)
-end
+
 
