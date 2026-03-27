@@ -1,5 +1,49 @@
 Leaderboard = {}
 
+local function CountAlivePlayersInLobby(lobbyId)
+    if not lobbyId then
+        return 0
+    end
+
+    local aliveCount = 0
+    for playerId, isAlive in pairs(Data.arenaPresence) do
+        if isAlive and Data.arenaStatLobbies[playerId] == lobbyId then
+            aliveCount = aliveCount + 1
+        end
+    end
+
+    return aliveCount
+end
+
+local function CountTrackedPlayersForLobby(lobbyId)
+    if not lobbyId then
+        return 0
+    end
+
+    local trackedCount = 0
+    for playerId, trackedLobbyId in pairs(Data.arenaStatLobbies) do
+        if trackedLobbyId == lobbyId and Data.arenaStats[playerId] then
+            trackedCount = trackedCount + 1
+        end
+    end
+
+    return trackedCount
+end
+
+function Leaderboard.ClearLobbyStats(lobbyId)
+    if not lobbyId then
+        return
+    end
+
+    for playerId, trackedLobbyId in pairs(Data.arenaStatLobbies) do
+        if trackedLobbyId == lobbyId then
+            Data.arenaStats[playerId] = nil
+            Data.arenaPresence[playerId] = nil
+            Data.arenaStatLobbies[playerId] = nil
+        end
+    end
+end
+
 function Leaderboard.EnsureLobbyTeamScores(lobbyId)
     if not lobbyId then
         return
@@ -42,7 +86,7 @@ function Leaderboard.BuildRows()
     local leaderboard = {}
 
     for playerId, stats in pairs(Data.arenaStats) do
-        local lobbyId = Data.playerLobbies[playerId]
+        local lobbyId = Data.playerLobbies[playerId] or Data.arenaStatLobbies[playerId]
         local lobby = lobbyId and Data.lobbies[lobbyId] or nil
         local isTeamsMode = lobby and lobby.gameMode == 'teams'
         local playerTeam = isTeamsMode and Data.playerTeams[playerId] or nil
@@ -64,6 +108,14 @@ function Leaderboard.BuildRows()
 end
 
 function Leaderboard.AddPlayer(playerId)
+    local lobbyId = Data.playerLobbies[playerId]
+
+    if lobbyId then
+        Data.arenaStatLobbies[playerId] = lobbyId
+    end
+
+    Data.arenaPresence[playerId] = true
+
     if not Data.arenaStats[playerId] then
         Data.arenaStats[playerId] = {
             name = Utils.GetPlayerName(playerId),
@@ -71,29 +123,55 @@ function Leaderboard.AddPlayer(playerId)
             deaths = 0
         }
     end
+
+    Data.arenaStats[playerId].name = Utils.GetPlayerName(playerId)
+
     Leaderboard.Broadcast()
 end
 
-function Leaderboard.RemovePlayer(playerId)
-    Data.arenaStats[playerId] = nil
+function Leaderboard.RemovePlayer(playerId, options)
+    options = options or {}
+    local keepCachedIfActive = options.keepCachedIfActive ~= false
 
-    local lobbyId = Data.playerLobbies[playerId]
+    local lobbyId = Data.playerLobbies[playerId] or Data.arenaStatLobbies[playerId]
+    Data.arenaPresence[playerId] = nil
+
+    local shouldKeepCachedStats = false
+    if keepCachedIfActive and lobbyId and Data.activeLobbyInArena == lobbyId and Data.lobbies[lobbyId] then
+        shouldKeepCachedStats = true
+    end
+
+    if not shouldKeepCachedStats then
+        Data.arenaStats[playerId] = nil
+        Data.arenaStatLobbies[playerId] = nil
+    end
+
     if lobbyId and Data.activeLobbyInArena == lobbyId then
         local lobby = Data.lobbies[lobbyId]
         if lobby then
-            local anyPlayerInArena = false
-            for pid, _ in pairs(lobby.players) do
-                if Data.arenaStats[pid] then
-                    anyPlayerInArena = true
-                    break
-                end
-            end
+            local alivePlayers = CountAlivePlayersInLobby(lobbyId)
+            local trackedPlayers = CountTrackedPlayersForLobby(lobbyId)
+            local isDeathmatch = lobby.deathmatchEnabled == true
 
-            if not anyPlayerInArena then
+            -- In non-deathmatch, end early when only one (or zero) players are still alive.
+            if not isDeathmatch and trackedPlayers > 1 and alivePlayers <= 1 then
+                for pid, isAlive in pairs(Data.arenaPresence) do
+                    if isAlive and Data.arenaStatLobbies[pid] == lobbyId then
+                        TriggerClientEvent('matti-airsoft:matchEndedElimination', pid)
+                    end
+                end
+
                 Data.activeLobbyInArena = nil
+
+                if Config.Debug then
+                    print(' Match ended early in lobby ' .. lobbyId .. ' (non-deathmatch elimination). Alive=' .. alivePlayers .. ', tracked=' .. trackedPlayers)
+                end
+            elseif alivePlayers == 0 then
                 if Config.Debug then
                     print(' Arena cleared - lobby ' .. lobbyId .. ' has no more players in arena')
                 end
+
+                Data.activeLobbyInArena = nil
             end
         end
     end

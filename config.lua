@@ -16,10 +16,33 @@ Config.ArenaItemWhitelist = { -- Items in this list are never removed when enter
 Config.LeaderboardEnabled = true -- Enable/disable the kill leaderboard
 Config.LeaderboardKey = 166 -- F5 key (see https://docs.fivem.net/docs/game-references/controls/ for key codes)
 Config.LeaderboardAccentColor = '#EC213A' -- Hex color for leaderboard + killfeed accent styling in NUI
+Config.ShowFinalScoreboardOnExit = true -- Show a final scoreboard snapshot when leaving the arena
 
 -- Match Timer Settings
 Config.MatchTimerEnabled = true -- Enable/disable the match timer feature
 Config.MaxMatchDurationMinutes = 10 -- Maximum duration for a match in minutes
+
+-- Lobby Game Mode Settings
+Config.DefaultGameMode = 'ffa' -- Lobby default mode when created
+Config.GameModes = {
+	{
+		id = 'ffa',
+		label = 'menu.ffa',
+		description = 'menu.ffa_desc',
+		icon = 'fas fa-user',
+		iconColor = '#f39c12',
+		teamBased = false,
+	},
+	{
+		id = 'teams',
+		label = 'menu.teams',
+		description = 'menu.teams_desc',
+		icon = 'fas fa-users',
+		iconColor = '#9b59b6',
+		teamBased = true,
+	},
+}
+Config.DeathmatchEnabledByDefault = true -- Lobby deathmatch toggle default. When enabled, hit players respawn in arena.
 
 Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'
 
@@ -57,7 +80,8 @@ Config.SpawnLocations = {
 
 -- Location where the player will be teleported if hit/dead
 Config.TeleportOnHit = true
-Config.ContinuePlayingAfterDeath = true -- If true, player respawns in arena instead of being kicked out
+Config.ContinuePlayingAfterDeath = true -- Legacy fallback when lobby deathmatch state is unavailable.
+Config.RefillLoadoutAmmoOnRespawn = true -- If true, replenishes only missing ammo up to selected loadout amounts when the player is hit/respawns.
 Config.KillerFallbackDistance = 60.0 -- Fallback distance used to resolve killer if direct attribution fails
 Config.ReturnLocation = vector3(2024.36, 2846.33, 50.26)
 

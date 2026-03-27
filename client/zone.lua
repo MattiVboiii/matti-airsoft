@@ -87,7 +87,7 @@ function Zone.HandleEntry(isPointInside)
         TriggerEvent('matti-airsoft:arenaStateChanged', false)
 
         if Config.LeaderboardEnabled then
-            Leaderboard.Hide()
+            Leaderboard.ShowFinalOnExit()
         end
 
         Utils.SendNotification(Lang:t('notifications.exited'), 'error')

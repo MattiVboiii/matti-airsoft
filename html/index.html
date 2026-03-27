@@ -39,6 +39,43 @@
         </div>
       </div>
     </div>
+
+    <div
+      id="final-scoreboard-overlay"
+      class="final-scoreboard-overlay"
+      style="display: none"
+    >
+      <div id="final-scoreboard" class="final-scoreboard-container">
+        <div class="leaderboard-header final-scoreboard-header">
+          <h1 id="final-scoreboard-title">🏁 FINAL SCOREBOARD</h1>
+          <h2 id="final-scoreboard-subtitle">Match Results</h2>
+        </div>
+        <div class="leaderboard-content final-scoreboard-content">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th id="final-col-player">Player</th>
+                <th id="final-col-team">Team</th>
+                <th>K</th>
+                <th>D</th>
+                <th>K/D</th>
+              </tr>
+            </thead>
+            <tbody id="final-leaderboard-body"></tbody>
+          </table>
+        </div>
+        <div class="final-scoreboard-actions">
+          <button
+            id="final-scoreboard-close"
+            type="button"
+            class="final-scoreboard-close-button"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
     <script src="script.js"></script>
   </body>
 </html>

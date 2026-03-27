@@ -43,6 +43,8 @@ end
 
 Data = {
     arenaStats = {},
+    arenaPresence = {},
+    arenaStatLobbies = {},
     lobbies = {},
     playerLobbies = {},
     playerTeams = {},
@@ -118,6 +120,31 @@ function Utils.HandlePlayerItem(playerId, itemName, amount, action, options)
     end
 
     return false
+end
+
+function Utils.GetPlayerItemCount(playerId, itemName)
+    if not playerId or type(itemName) ~= 'string' or itemName == '' then
+        return 0
+    end
+
+    if Config.InventorySystem == 'ox_inventory' then
+        local count = exports.ox_inventory:GetItemCount(playerId, itemName)
+        return tonumber(count) or 0
+    end
+
+    local player = Utils.GetPlayer(playerId)
+    if not player or not player.PlayerData or type(player.PlayerData.items) ~= 'table' then
+        return 0
+    end
+
+    local total = 0
+    for _, item in pairs(player.PlayerData.items) do
+        if item and item.name == itemName and tonumber(item.amount) and tonumber(item.amount) > 0 then
+            total = total + tonumber(item.amount)
+        end
+    end
+
+    return total
 end
 
 function Utils.RemoveWeaponFromPed(playerId, weaponName)

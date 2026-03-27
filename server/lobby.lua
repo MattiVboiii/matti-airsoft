@@ -1,5 +1,84 @@
 Lobby = {}
 
+local function NormalizeModeId(mode)
+    if type(mode) ~= 'string' then
+        return nil
+    end
+
+    local normalized = string.lower(mode)
+    if normalized == '' then
+        return nil
+    end
+
+    return normalized
+end
+
+local function GetConfiguredGameModes()
+    local modes = {}
+
+    for _, mode in ipairs(Config.GameModes or {}) do
+        if type(mode) == 'table' then
+            local modeId = NormalizeModeId(mode.id)
+            if modeId and not modes[modeId] then
+                modes[modeId] = {
+                    teamBased = mode.teamBased == true
+                }
+            end
+        elseif type(mode) == 'string' then
+            local modeId = NormalizeModeId(mode)
+            if modeId and not modes[modeId] then
+                modes[modeId] = {
+                    teamBased = modeId == 'teams'
+                }
+            end
+        end
+    end
+
+    if next(modes) == nil then
+        modes.ffa = { teamBased = false }
+        modes.teams = { teamBased = true }
+    end
+
+    return modes
+end
+
+function Lobby.IsAllowedGameMode(mode)
+    local modeId = NormalizeModeId(mode)
+    if not modeId then
+        return false
+    end
+
+    return GetConfiguredGameModes()[modeId] ~= nil
+end
+
+function Lobby.IsTeamBasedMode(mode)
+    local modeId = NormalizeModeId(mode)
+    if not modeId then
+        return false
+    end
+
+    local modeConfig = GetConfiguredGameModes()[modeId]
+    return modeConfig and modeConfig.teamBased == true or false
+end
+
+function Lobby.GetDefaultGameMode()
+    local configuredDefault = NormalizeModeId(Config.DefaultGameMode)
+    if configuredDefault and Lobby.IsAllowedGameMode(configuredDefault) then
+        return configuredDefault
+    end
+
+    if Lobby.IsAllowedGameMode('ffa') then
+        return 'ffa'
+    end
+
+    local fallbackModes = GetConfiguredGameModes()
+    for modeId, _ in pairs(fallbackModes) do
+        return modeId
+    end
+
+    return 'ffa'
+end
+
 function Lobby.GetPlayerCount(lobby)
     local count = 0
     for _ in pairs(lobby.players) do
@@ -68,7 +147,8 @@ function Lobby.Create(playerId, lobbyName)
         players = {
             [playerId] = { id = playerId, name = playerName }
         },
-        gameMode = 'ffa',
+        gameMode = Lobby.GetDefaultGameMode(),
+        deathmatchEnabled = Config.DeathmatchEnabledByDefault ~= false,
         selectedLoadout = nil,
         matchTimer = 5 * 60, -- Default: 5 minutes
         maxPlayers = 16
@@ -137,6 +217,7 @@ function Lobby.Leave(playerId)
 
     if Lobby.GetPlayerCount(lobby) == 0 then
         Data.teamScores[lobbyId] = nil
+        Leaderboard.ClearLobbyStats(lobbyId)
         Data.lobbies[lobbyId] = nil
         if Config.Debug then
             print(' Lobby ' .. lobbyId .. ' deleted (empty)')
@@ -174,14 +255,14 @@ function Lobby.SetGameMode(playerId, mode)
         return false
     end
 
-    local allowedModes = { ffa = true, teams = true }
-    if not allowedModes[mode] then
+    local normalizedMode = NormalizeModeId(mode)
+    if not normalizedMode or not Lobby.IsAllowedGameMode(normalizedMode) then
         return false
     end
 
-    lobby.gameMode = mode
+    lobby.gameMode = normalizedMode
 
-    if mode ~= 'teams' then
+    if not Lobby.IsTeamBasedMode(normalizedMode) then
         Data.teamScores[lobbyId] = nil
         for pid, _ in pairs(lobby.players) do
             Data.playerTeams[pid] = nil
@@ -194,7 +275,7 @@ function Lobby.SetGameMode(playerId, mode)
     end
 
     if Config.Debug then
-        print(' Lobby ' .. lobbyId .. ' game mode set to: ' .. mode)
+        print(' Lobby ' .. lobbyId .. ' game mode set to: ' .. normalizedMode)
     end
 
     for pid, _ in pairs(lobby.players) do
@@ -223,6 +304,34 @@ function Lobby.SetLoadout(playerId, loadout)
 
     if Config.Debug then
         print(' Lobby ' .. lobbyId .. ' loadout set to: ' .. (loadout and loadout.name or 'None'))
+    end
+
+    for pid, _ in pairs(lobby.players) do
+        TriggerClientEvent('matti-airsoft:lobbyUpdated', pid, lobby)
+    end
+
+    return true
+end
+
+function Lobby.SetDeathmatchEnabled(playerId, enabled)
+    local lobbyId = Data.playerLobbies[playerId]
+
+    if not lobbyId or not Data.lobbies[lobbyId] then
+        TriggerClientEvent('matti-airsoft:sendNotification', playerId, Lang:t('notifications.not_in_lobby'), 'error')
+        return false
+    end
+
+    local lobby = Data.lobbies[lobbyId]
+
+    if lobby.host ~= playerId then
+        TriggerClientEvent('matti-airsoft:sendNotification', playerId, Lang:t('notifications.not_host'), 'error')
+        return false
+    end
+
+    lobby.deathmatchEnabled = enabled == true
+
+    if Config.Debug then
+        print(' Lobby ' .. lobbyId .. ' deathmatch set to: ' .. tostring(lobby.deathmatchEnabled))
     end
 
     for pid, _ in pairs(lobby.players) do
@@ -293,7 +402,7 @@ function Lobby.StartGame(playerId)
 
     Data.activeLobbyInArena = lobbyId
 
-    if lobby.gameMode == 'teams' then
+    if Lobby.IsTeamBasedMode(lobby.gameMode) then
         Data.teamScores[lobbyId] = {
             team1 = 0,
             team2 = 0
@@ -303,7 +412,7 @@ function Lobby.StartGame(playerId)
     end
 
     for pid, _ in pairs(lobby.players) do
-        TriggerClientEvent('matti-airsoft:gameStarting', pid, lobby.selectedLoadout, lobby.gameMode)
+        TriggerClientEvent('matti-airsoft:gameStarting', pid, lobby.selectedLoadout, lobby.gameMode, lobby.deathmatchEnabled == true)
     end
 
     if Config.Debug then

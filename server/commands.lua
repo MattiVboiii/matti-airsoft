@@ -9,6 +9,8 @@ QBCore.Commands.Add(
             for playerId, _ in pairs(Data.arenaStats) do
                 TriggerClientEvent('matti-airsoft:forceExitArena', playerId)
                 Data.arenaStats[playerId] = nil
+                Data.arenaPresence[playerId] = nil
+                Data.arenaStatLobbies[playerId] = nil
                 removedCount = removedCount + 1
             end
             Leaderboard.Broadcast()

@@ -1,5 +1,13 @@
 Leaderboard = {}
 
+function Leaderboard.SetCachedRows(rows)
+    State.cachedLeaderboardRows = rows or {}
+end
+
+function Leaderboard.GetCachedRows()
+    return State.cachedLeaderboardRows or {}
+end
+
 function Leaderboard.ApplyUiTheme()
     SendNUIMessage({
         action = 'setUiTheme',
@@ -15,6 +23,7 @@ function Leaderboard.Show()
     State.leaderboardVisible = true
 
     QBCore.Functions.TriggerCallback('matti-airsoft:getLeaderboard', function(leaderboard)
+        Leaderboard.SetCachedRows(leaderboard)
         Leaderboard.ApplyUiTheme()
         SendNUIMessage({
             action = 'showLeaderboard',
@@ -32,6 +41,41 @@ function Leaderboard.Hide()
         action = 'showLeaderboard',
         show = false
     })
+end
+
+function Leaderboard.HideFinalOnExit()
+    State.finalScoreboardVisible = false
+    SendNUIMessage({
+        action = 'showFinalScoreboard',
+        show = false
+    })
+    SetNuiFocus(false, false)
+end
+
+function Leaderboard.ShowFinalOnExit()
+    if not Config.LeaderboardEnabled or not Config.ShowFinalScoreboardOnExit then
+        Leaderboard.Hide()
+        Leaderboard.HideFinalOnExit()
+        return
+    end
+
+    local cachedRows = Leaderboard.GetCachedRows()
+    if not cachedRows or #cachedRows == 0 then
+        Leaderboard.Hide()
+        Leaderboard.HideFinalOnExit()
+        return
+    end
+
+    Leaderboard.Hide()
+    State.finalScoreboardVisible = true
+    Leaderboard.ApplyUiTheme()
+    SendNUIMessage({
+        action = 'showFinalScoreboard',
+        show = true,
+        leaderboard = cachedRows,
+        accentColor = Config.LeaderboardAccentColor
+    })
+    SetNuiFocus(true, true)
 end
 
 function Leaderboard.Toggle()

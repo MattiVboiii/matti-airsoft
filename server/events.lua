@@ -58,6 +58,26 @@ local function BuildLoadoutGrants(loadout)
     return grants
 end
 
+local function RefillMissingLoadoutAmmo(playerId, loadout)
+    if not loadout then
+        return
+    end
+
+    for _, ammo in ipairs(loadout.ammo or {}) do
+        local itemName = ammo.name
+        local loadoutAmount = math.floor(tonumber(ammo.amount) or 0)
+
+        if type(itemName) == 'string' and itemName ~= '' and loadoutAmount > 0 then
+            local currentAmount = Utils.GetPlayerItemCount(playerId, itemName)
+            local missingAmount = loadoutAmount - currentAmount
+
+            if missingAmount > 0 then
+                Utils.HandlePlayerItem(playerId, itemName, missingAmount, 'add')
+            end
+        end
+    end
+end
+
 local function IsLoadoutItem(loadout, itemName)
     local normalizedName = NormalizeItemName(itemName)
     if not loadout or not normalizedName then
@@ -159,6 +179,14 @@ RegisterNetEvent('matti-airsoft:setGameMode', function(mode)
     Lobby.SetGameMode(source, mode)
 end)
 
+RegisterNetEvent('matti-airsoft:setDeathmatchEnabled', function(enabled)
+    if type(enabled) ~= 'boolean' then
+        return
+    end
+
+    Lobby.SetDeathmatchEnabled(source, enabled)
+end)
+
 RegisterNetEvent('matti-airsoft:setLobbyLoadout', function(loadout)
     -- Resolve loadout from server-side Config by name; never trust the client-supplied object
     local loadoutName = type(loadout) == 'table' and type(loadout.name) == 'string' and loadout.name or nil
@@ -206,7 +234,7 @@ RegisterNetEvent('matti-airsoft:setPlayerTeam', function(team)
 
     local lobby = Data.lobbies[lobbyId]
 
-    if lobby.gameMode ~= 'teams' then
+    if not Lobby.IsTeamBasedMode(lobby.gameMode) then
         TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('notifications.not_teams_mode'), 'error')
         return
     end
@@ -276,6 +304,14 @@ RegisterNetEvent('matti-airsoft:playerWasHit', function(killerId)
     end
 
     Leaderboard.RecordHit(victimId, normalizedKillerId)
+
+    if Config.RefillLoadoutAmmoOnRespawn then
+        local lobby = GetPlayerArenaLobby(victimId)
+        if lobby and lobby.selectedLoadout then
+            RefillMissingLoadoutAmmo(victimId, lobby.selectedLoadout)
+        end
+    end
+
     Data.recentAttackers[victimId] = nil
 end)
 

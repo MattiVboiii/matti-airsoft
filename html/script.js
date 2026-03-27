@@ -56,6 +56,8 @@ $(document).ready(function () {
     $("#leaderboard-subtitle").text(translations.subtitle);
     $("#col-player").text(translations.columnPlayer);
     $("#col-team").text(translations.columnTeam);
+    $("#final-col-player").text(translations.columnPlayer);
+    $("#final-col-team").text(translations.columnTeam);
   }
 
   applyStaticTranslations();
@@ -90,6 +92,19 @@ $(document).ready(function () {
       }
     }
 
+    if (data.action === "showFinalScoreboard") {
+      if (data.accentColor) {
+        applyAccentTheme(data.accentColor);
+      }
+
+      if (data.show) {
+        updateLeaderboard(data.leaderboard, "#final-leaderboard-body");
+        $("#final-scoreboard-overlay").show();
+      } else {
+        $("#final-scoreboard-overlay").hide();
+      }
+    }
+
     // Handle updating the leaderboard data
     if (data.action === "updateLeaderboard") {
       updateLeaderboard(data.leaderboard);
@@ -107,8 +122,15 @@ $(document).ready(function () {
       timerExpired();
     }
 
+    if (data.action === "clearArenaHud") {
+      $("#killfeed").empty();
+      $("#leaderboard").hide();
+      $("#timer-display").hide().removeClass("timer-warning");
+      $("#timer-text").text("10:00");
+    }
+
     if (data.action === "hideTimer") {
-      $("#timer-display").hide();
+      $("#timer-display").hide().removeClass("timer-warning");
     }
   });
 
@@ -168,9 +190,35 @@ $(document).ready(function () {
     }, killfeedLifetimeMs);
   }
 
+  function closeFinalScoreboard() {
+    fetch(`https://${GetParentResourceName()}/closeFinalScoreboard`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=UTF-8",
+      },
+      body: JSON.stringify({}),
+    }).catch(() => {});
+  }
+
+  $("#final-scoreboard-close").on("click", function () {
+    closeFinalScoreboard();
+  });
+
+  $(document).on("keydown", function (event) {
+    if (
+      event.key === "Escape" &&
+      $("#final-scoreboard-overlay").is(":visible")
+    ) {
+      closeFinalScoreboard();
+    }
+  });
+
   // Function to update leaderboard with player data
-  function updateLeaderboard(leaderboard) {
-    const tbody = $("#leaderboard-body");
+  function updateLeaderboard(
+    leaderboard,
+    targetBodySelector = "#leaderboard-body",
+  ) {
+    const tbody = $(targetBodySelector);
     tbody.empty();
 
     if (!leaderboard || leaderboard.length === 0) {

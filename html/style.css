@@ -339,6 +339,80 @@ td.team {
   border: 1px solid rgba(117, 117, 117, 0.5);
 }
 
+.final-scoreboard-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 6, 10, 0.72);
+  z-index: 50;
+}
+
+.final-scoreboard-container {
+  width: min(92vw, 860px);
+  max-height: 84vh;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    rgba(16, 16, 26, 0.96),
+    rgba(26, 26, 42, 0.95)
+  );
+  border-radius: 16px;
+  border: 2px solid rgba(var(--accent-rgb), 0.6);
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.65),
+    0 0 32px rgba(var(--accent-rgb), 0.22);
+  padding: 18px 18px 14px;
+  animation: finalScoreboardPopIn 0.22s ease-out;
+}
+
+.final-scoreboard-header {
+  margin-bottom: 10px;
+}
+
+.final-scoreboard-content {
+  max-height: calc(84vh - 140px);
+}
+
+.final-scoreboard-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.final-scoreboard-close-button {
+  appearance: none;
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-rgb), 0.3),
+    rgba(var(--accent-rgb), 0.15)
+  );
+  color: #ffffff;
+  border-radius: 9px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+}
+
+.final-scoreboard-close-button:hover {
+  filter: brightness(1.15);
+}
+
+@keyframes finalScoreboardPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Team row styling */
 tbody tr.team-blue-row {
   border-left: 3px solid #2196f3;

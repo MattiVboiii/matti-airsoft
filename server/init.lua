@@ -17,10 +17,7 @@ AddEventHandler('playerDropped', function()
         end
     end
 
-    if Data.arenaStats[src] then
-        Data.arenaStats[src] = nil
-        Leaderboard.Broadcast()
-    end
+    Leaderboard.RemovePlayer(src, { keepCachedIfActive = false })
 
     local lobbyId = Data.playerLobbies[src]
     if lobbyId and Data.lobbies[lobbyId] then

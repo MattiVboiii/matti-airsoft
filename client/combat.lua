@@ -209,14 +209,24 @@ function Combat.CheckHitStatus()
                             print(' Starting revive logic. Was stunned: ' .. tostring(wasStunned))
                         end
 
+                        local deathmatchEnabled = nil
+                        if State.currentLobby and type(State.currentLobby.deathmatchEnabled) == 'boolean' then
+                            deathmatchEnabled = State.currentLobby.deathmatchEnabled
+                        elseif type(Config.DeathmatchEnabledByDefault) == 'boolean' then
+                            deathmatchEnabled = Config.DeathmatchEnabledByDefault
+                        else
+                            deathmatchEnabled = Config.ContinuePlayingAfterDeath
+                        end
+
                         if Config.TeleportOnHit then
-                            if Config.ContinuePlayingAfterDeath then
+                            if deathmatchEnabled then
                                 Utils.SendNotification(Lang:t('inarena.shot'))
                                 Wait(2000)
                                 Player.TeleportToRandomPosition()
                             else
                                 Utils.SendNotification(Lang:t('inarena.shotandout'))
-                                SetEntityCoords(playerPed, Config.ReturnLocation)
+                                -- Run full exit flow so HUD/NUI always gets cleaned when eliminated.
+                                TriggerEvent('matti-airsoft:exitArena')
                             end
                         else
                             Utils.SendNotification(Lang:t('inarena.shot'))

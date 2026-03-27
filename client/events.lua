@@ -1,3 +1,117 @@
+local function NormalizeModeId(mode)
+    if type(mode) ~= 'string' then
+        return nil
+    end
+
+    local normalized = string.lower(mode)
+    if normalized == '' then
+        return nil
+    end
+
+    return normalized
+end
+
+local function GetConfiguredGameModes()
+    local modes = {}
+
+    for _, mode in ipairs(Config.GameModes or {}) do
+        if type(mode) == 'table' then
+            local modeId = NormalizeModeId(mode.id)
+            if modeId and not modes[modeId] then
+                modes[modeId] = {
+                    id = modeId,
+                    label = mode.label,
+                    description = mode.description,
+                    icon = mode.icon,
+                    iconColor = mode.iconColor,
+                    teamBased = mode.teamBased == true,
+                }
+            end
+        elseif type(mode) == 'string' then
+            local modeId = NormalizeModeId(mode)
+            if modeId and not modes[modeId] then
+                modes[modeId] = {
+                    id = modeId,
+                    label = 'menu.' .. modeId,
+                    description = 'menu.' .. modeId .. '_desc',
+                    icon = modeId == 'teams' and 'fas fa-users' or 'fas fa-user',
+                    iconColor = modeId == 'teams' and '#9b59b6' or '#f39c12',
+                    teamBased = modeId == 'teams',
+                }
+            end
+        end
+    end
+
+    if next(modes) == nil then
+        modes.ffa = {
+            id = 'ffa',
+            label = 'menu.ffa',
+            description = 'menu.ffa_desc',
+            icon = 'fas fa-user',
+            iconColor = '#f39c12',
+            teamBased = false,
+        }
+        modes.teams = {
+            id = 'teams',
+            label = 'menu.teams',
+            description = 'menu.teams_desc',
+            icon = 'fas fa-users',
+            iconColor = '#9b59b6',
+            teamBased = true,
+        }
+    end
+
+    return modes
+end
+
+local function GetOrderedModeIds()
+    local orderedIds = {}
+
+    for _, mode in ipairs(Config.GameModes or {}) do
+        if type(mode) == 'table' and NormalizeModeId(mode.id) then
+            table.insert(orderedIds, NormalizeModeId(mode.id))
+        elseif type(mode) == 'string' and NormalizeModeId(mode) then
+            table.insert(orderedIds, NormalizeModeId(mode))
+        end
+    end
+
+    if #orderedIds == 0 then
+        orderedIds = { 'ffa', 'teams' }
+    end
+
+    return orderedIds
+end
+
+local function GetModeLabel(mode)
+    local modeId = NormalizeModeId(mode)
+    local modeConfig = modeId and GetConfiguredGameModes()[modeId] or nil
+    local labelKey = modeConfig and modeConfig.label or nil
+
+    if labelKey then
+        return Lang:t(labelKey)
+    end
+
+    if modeId == 'teams' then
+        return Lang:t('menu.teams')
+    end
+
+    return Lang:t('menu.ffa')
+end
+
+local function IsTeamBasedMode(mode)
+    local modeId = NormalizeModeId(mode)
+    local modeConfig = modeId and GetConfiguredGameModes()[modeId] or nil
+    return modeConfig and modeConfig.teamBased == true or false
+end
+
+local function IsDeathmatchEnabled(lobby)
+    if lobby and type(lobby.deathmatchEnabled) == 'boolean' then
+        return lobby.deathmatchEnabled
+    end
+
+    return Config.DeathmatchEnabledByDefault ~= false
+end
+
 RegisterNetEvent('matti-airsoft:openLobbyMenu', function()
     QBCore.Functions.TriggerCallback('matti-airsoft:getPlayerLobby', function(lobby)
         if lobby then
@@ -46,7 +160,7 @@ AddEventHandler('matti-airsoft:openLobbyBrowser', function()
             for _, lobby in ipairs(lobbies) do
                 local inArenaMarker = lobby.isInArena and ' 🎮' or ''
                 local lobbyInfo = lobby.name .. inArenaMarker .. ' (' .. lobby.playerCount .. '/' .. lobby.maxPlayers .. ')'
-                local lobbyDesc = Lang:t('menu.host') .. ': ' .. lobby.host .. ' | ' .. (lobby.gameMode == 'ffa' and Lang:t('menu.ffa') or Lang:t('menu.teams'))
+                local lobbyDesc = Lang:t('menu.host') .. ': ' .. lobby.host .. ' | ' .. GetModeLabel(lobby.gameMode)
 
                 if lobby.isInArena then
                     lobbyDesc = lobbyDesc .. '\n🎮 ' .. Lang:t('menu.playing_in_arena')
@@ -167,13 +281,23 @@ RegisterNetEvent('matti-airsoft:openLobbyManagement', function()
     })
 
     if isHost then
-        local currentModeText = State.currentLobby.gameMode == 'ffa' and Lang:t('menu.ffa') or Lang:t('menu.teams')
+        local currentModeText = GetModeLabel(State.currentLobby.gameMode)
         Menu.AddOption(managementMenu, {
             title = Lang:t('menu.game_mode'),
             description = Lang:t('menu.current_mode') .. ': ' .. currentModeText,
             event = 'matti-airsoft:selectGameMode',
             icon = 'fas fa-gamepad',
             iconColor = '#3498db',
+        })
+
+        local deathmatchEnabled = IsDeathmatchEnabled(State.currentLobby)
+        Menu.AddOption(managementMenu, {
+            title = Lang:t('menu.deathmatch_toggle'),
+            description = Lang:t('menu.current_mode') .. ': ' .. (deathmatchEnabled and Lang:t('menu.enabled') or Lang:t('menu.disabled')),
+            event = 'matti-airsoft:toggleDeathmatch',
+            args = { enabled = not deathmatchEnabled },
+            icon = 'fas fa-skull-crossbones',
+            iconColor = deathmatchEnabled and '#e67e22' or '#95a5a6',
         })
 
         local currentLoadoutText = State.currentLobby.selectedLoadout and State.currentLobby.selectedLoadout.name or Lang:t('menu.no_loadout')
@@ -204,7 +328,7 @@ RegisterNetEvent('matti-airsoft:openLobbyManagement', function()
             iconColor = '#2ecc71',
         })
     else
-        local currentModeText = State.currentLobby.gameMode == 'ffa' and Lang:t('menu.ffa') or Lang:t('menu.teams')
+        local currentModeText = GetModeLabel(State.currentLobby.gameMode)
         local currentLoadoutText = State.currentLobby.selectedLoadout and State.currentLobby.selectedLoadout.name or Lang:t('menu.no_loadout')
 
         Menu.AddOption(managementMenu, {
@@ -216,7 +340,7 @@ RegisterNetEvent('matti-airsoft:openLobbyManagement', function()
         })
     end
 
-    if State.currentLobby.gameMode == 'teams' then
+    if IsTeamBasedMode(State.currentLobby.gameMode) then
         Menu.AddOption(managementMenu, {
             title = Lang:t('menu.select_team'),
             description = Lang:t('menu.select_team_desc'),
@@ -245,24 +369,21 @@ end)
 RegisterNetEvent('matti-airsoft:selectGameMode')
 AddEventHandler('matti-airsoft:selectGameMode', function()
     local gameModeMenu = {}
+    local modes = GetConfiguredGameModes()
 
-    Menu.AddOption(gameModeMenu, {
-        title = Lang:t('menu.ffa'),
-        description = Lang:t('menu.ffa_desc'),
-        event = 'matti-airsoft:setGameMode',
-        args = { mode = 'ffa' },
-        icon = 'fas fa-user',
-        iconColor = '#f39c12',
-    })
-
-    Menu.AddOption(gameModeMenu, {
-        title = Lang:t('menu.teams'),
-        description = Lang:t('menu.teams_desc'),
-        event = 'matti-airsoft:setGameMode',
-        args = { mode = 'teams' },
-        icon = 'fas fa-users',
-        iconColor = '#9b59b6',
-    })
+    for _, modeId in ipairs(GetOrderedModeIds()) do
+        local modeConfig = modes[modeId]
+        if modeConfig then
+            Menu.AddOption(gameModeMenu, {
+                title = Lang:t(modeConfig.label),
+                description = Lang:t(modeConfig.description),
+                event = 'matti-airsoft:setGameMode',
+                args = { mode = modeId },
+                icon = modeConfig.icon,
+                iconColor = modeConfig.iconColor,
+            })
+        end
+    end
 
     Menu.AddOption(gameModeMenu, {
         title = Lang:t('menu.back'),
@@ -276,7 +397,15 @@ end)
 
 RegisterNetEvent('matti-airsoft:setGameMode', function(data)
     TriggerServerEvent('matti-airsoft:setGameMode', data.mode)
-    Utils.SendNotification(Lang:t('notifications.game_mode_set') .. ' ' .. (data.mode == 'ffa' and Lang:t('menu.ffa') or Lang:t('menu.teams')), 'success')
+    Utils.SendNotification(Lang:t('notifications.game_mode_set') .. ' ' .. GetModeLabel(data.mode), 'success')
+    Wait(500)
+    TriggerEvent('matti-airsoft:openLobbyManagement')
+end)
+
+RegisterNetEvent('matti-airsoft:toggleDeathmatch', function(data)
+    local enabled = data and data.enabled == true
+    TriggerServerEvent('matti-airsoft:setDeathmatchEnabled', enabled)
+    Utils.SendNotification(enabled and Lang:t('notifications.deathmatch_enabled') or Lang:t('notifications.deathmatch_disabled'), 'success')
     Wait(500)
     TriggerEvent('matti-airsoft:openLobbyManagement')
 end)
@@ -376,7 +505,7 @@ AddEventHandler('matti-airsoft:openMatchTimerInput', function()
 end)
 
 RegisterNetEvent('matti-airsoft:startLobbyGame', function()
-    if State.currentLobby and State.currentLobby.gameMode == 'teams' then
+    if State.currentLobby and IsTeamBasedMode(State.currentLobby.gameMode) then
         QBCore.Functions.TriggerCallback('matti-airsoft:getPlayerTeam', function(team)
             if not team then
                 TriggerEvent('matti-airsoft:selectTeam')
@@ -401,13 +530,17 @@ RegisterNetEvent('matti-airsoft:confirmTeamSelection', function(data)
     Utils.SendNotification(Lang:t('notifications.team_selected') .. ' ' .. (data.team == 'team1' and Lang:t('menu.team1') or Lang:t('menu.team2')), 'success')
 end)
 
-RegisterNetEvent('matti-airsoft:gameStarting', function(loadout, gameMode)
+RegisterNetEvent('matti-airsoft:gameStarting', function(loadout, gameMode, deathmatchEnabled)
     if not loadout then
         Utils.SendNotification(Lang:t('notifications.select_loadout_first'), 'error')
         return
     end
 
-    if gameMode == 'teams' then
+    if State.currentLobby then
+        State.currentLobby.deathmatchEnabled = deathmatchEnabled == true
+    end
+
+    if IsTeamBasedMode(gameMode) then
         QBCore.Functions.TriggerCallback('matti-airsoft:getPlayerTeam', function(team)
             if not team then
                 TriggerEvent('matti-airsoft:selectTeamBeforePlay')
@@ -466,14 +599,15 @@ local function HandleArenaExitCleanup()
         State.isInArena = false
     end
 
-    if Config.LeaderboardEnabled then
-        Leaderboard.Hide()
-    end
+    State.leaderboardVisible = false
 
-    if Config.MatchTimerEnabled then
-        SendNUIMessage({
-            action = 'hideTimer'
-        })
+    -- Clear all in-match HUD NUI first (timer, killfeed, live leaderboard).
+    SendNUIMessage({
+        action = 'clearArenaHud'
+    })
+
+    if Config.LeaderboardEnabled then
+        Leaderboard.ShowFinalOnExit()
     end
 
     State.isHit = false
@@ -502,6 +636,8 @@ RegisterNetEvent('matti-airsoft:forceExitArena', function()
 end)
 
 RegisterNetEvent('matti-airsoft:updateLeaderboard', function(leaderboard)
+    Leaderboard.SetCachedRows(leaderboard)
+
     if State.leaderboardVisible and State.isInArena then
         SendNUIMessage({
             action = 'updateLeaderboard',
@@ -523,6 +659,11 @@ RegisterNUICallback('closeLeaderboard', function(_, cb)
     cb('ok')
 end)
 
+RegisterNUICallback('closeFinalScoreboard', function(_, cb)
+    Leaderboard.HideFinalOnExit()
+    cb('ok')
+end)
+
 -- Match Timer Events
 RegisterNetEvent('matti-airsoft:updateTimer', function(secondsRemaining)
     if State.isInArena and Config.LeaderboardEnabled then
@@ -541,6 +682,18 @@ RegisterNetEvent('matti-airsoft:matchTimeExpired', function()
         })
     end
     Wait(5000)
+    TriggerEvent('matti-airsoft:exitArena')
+end)
+
+RegisterNetEvent('matti-airsoft:matchEndedElimination', function()
+    Utils.SendNotification(Lang:t('notifications.match_ended_elimination'), 'info')
+    if Config.LeaderboardEnabled then
+        SendNUIMessage({
+            action = 'timerExpired'
+        })
+    end
+
+    Wait(2000)
     TriggerEvent('matti-airsoft:exitArena')
 end)
 
