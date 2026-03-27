@@ -38,17 +38,31 @@ end
 
 function Zone.Create()
     if Config.ZoneType == 'circle' then
-        State.airsoftZone = CircleZone:Create(Config.AirsoftZone.coordinates, Config.AirsoftZone.radius, {
-            debugPoly = Config.Debug,
+        State.airsoftZone = lib.zones.sphere({
+            coords = Config.AirsoftZone.coordinates,
+            radius = Config.AirsoftZone.radius,
+            debug = Config.Debug,
+            onEnter = function()
+                Zone.HandleEntry(true)
+            end,
+            onExit = function()
+                Zone.HandleEntry(false)
+            end,
         })
     elseif Config.ZoneType == 'poly' then
-        State.airsoftZone = PolyZone:Create(Config.AirsoftZone.points, {
-            debugPoly = Config.Debug,
+        State.airsoftZone = lib.zones.poly({
+            points = Config.AirsoftZone.points,
+            thickness = Config.AirsoftZone.thickness or 20,
+            debug = Config.Debug,
+            onEnter = function()
+                Zone.HandleEntry(true)
+            end,
+            onExit = function()
+                Zone.HandleEntry(false)
+            end,
         })
     else
         print('No supported zone type found.')
         return
     end
-
-    State.airsoftZone:onPlayerInOut(Zone.HandleEntry)
 end

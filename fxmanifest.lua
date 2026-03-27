@@ -17,8 +17,6 @@ files({
 })
 
 client_scripts({
-	'@PolyZone/client.lua',
-	'@PolyZone/CircleZone.lua',
 	'client/shared.lua',
 	'client/inventory.lua',
 	'client/player_entities.lua',

@@ -1,7 +1,7 @@
 Config = {}
 
 Config.Framework = 'qbx' -- Options: 'qb', 'ox' or 'qbx' 
-Config.Debug = false -- Enable/disable debug prints & spawn peds
+Config.Debug = true -- Enable/disable debug prints & spawn peds
 Config.TargetSystem = 'ox_target' -- Options: 'qb-target' or 'ox_target'
 Config.MenuSystem = 'ox_lib' -- Options: 'qb-menu' or 'ox_lib'
 Config.NotifySystem = 'ox_lib' -- Options: 'qb-core' or 'ox_lib'
@@ -25,13 +25,14 @@ Config.ZoneType = 'circle' -- Options: 'circle' or 'poly'
 
 -- Define the airsoft zone configuration
 Config.AirsoftZone = {
-	coordinates = vector3(2025.99, 2784.98, 76.39), -- Center of the circlezone
-	radius = 58, -- Only used if Config.ZoneType is 'circle'
-	points = { -- Only used if Config.ZoneType is 'poly'
-		vector2(2020.0, 2780.0),
-		vector2(2030.0, 2780.0),
-		vector2(2030.0, 2790.0),
-		vector2(2020.0, 2790.0),
+	coordinates = vector3(2025.99, 2784.98, 50), -- Center of the circlezone
+	radius = 58.5, -- Only used if Config.ZoneType is 'circle'
+	thickness = 50, -- Only used if Config.ZoneType is 'poly' (total vertical height of the zone)
+	points = { -- Only used if Config.ZoneType is 'poly' (must be vector3)
+		vector3(2020.0, 2780.0, 50.0),
+		vector3(2030.0, 2780.0, 50.0),
+		vector3(2030.0, 2790.0, 50.0),
+		vector3(2020.0, 2790.0, 50.0),
 	},
 }
 

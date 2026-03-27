@@ -182,7 +182,7 @@ end
 
 function Combat.CheckHitStatus()
     Citizen.CreateThread(function()
-        while State.airsoftZone:isPointInside(GetEntityCoords(PlayerPedId())) do
+        while State.isInArena do
             Wait(100)
             local playerPed = PlayerPedId()
 
