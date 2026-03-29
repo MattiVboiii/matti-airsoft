@@ -152,7 +152,7 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 
 ## ⚙️ Config Notes
 
-- `Config.Framework` — set to `'qb'`, `'qbx'`, or `'ox'` to match your server framework.
+- `Config.Framework` — set to `'qb'` or `'qbx'` to match your server framework.
 - `Config.TargetSystem` — `'qb-target'` or `'ox_target'`.
 - `Config.MenuSystem` — `'qb-menu'` or `'ox_lib'`.
 - `Config.NotifySystem` — `'qb-core'` or `'ox_lib'`.
@@ -179,6 +179,8 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 - If you have any questions about the default setup, feel free to ask. If you encounter any bugs, please report them [here](https://github.com/MattiVboiii/matti-airsoft/issues).
 
 - Will I add support for ESX? No. I have no interest in supporting ESX and will not add compatibility for it. I will only support QBCore, QBox & OXCore (still WIP).
+
+- Although I added that it supports OXCore, I have absolutely no idea if that's true since I have never tried it, but I think it works 75%... So if you encounter any problems on OXCore, please reach out and we will figure out a solution together.
 
 - I currently use QBox for testing and development, I'm mostly too lazy to test on other frameworks. So I'm sorry in advance if there are any issues with other frameworks, but I will try my best to fix them if they come up.
 
