@@ -1,5 +1,39 @@
 # Changelog
 
+## [2.0.2] - 2026-03-29
+
+> **Full diff**: [`2.0.1...2.0.2`](https://github.com/MattiVboiii/matti-airsoft/compare/2.0.1...2.0.2)
+
+### ✨ New Features
+
+- **Deathmatch mode** (`Config.GameModes`) — players respawn in the arena after being hit. Supports both team-based and free-for-all play; the lobby owner can toggle the mode from the UI; the leaderboard displays final scores when exiting the arena; ammo is replenished on each respawn.
+- **Arena inventory restrictions** — items can no longer be manipulated by players while inside the arena, complementing the existing whitelist/save-restore system.
+
+### 🔧 Improvements
+
+- Refactored arena zone checks and zone handling to use a new zone library integration.
+- Shared utility functions extracted into a new `shared/utils.lua` (`SharedUtils`) module for item-name normalisation and validation; all `server/` and `client/` scripts updated to use `SharedUtils`.
+- Leaderboard translations moved to a dedicated function in `client/init.lua` for cleaner NUI messaging.
+- `GetCurrentAmmoCount` added in `client/loadout.lua` to centralise ammo checks across loadout handling.
+- `Menu.ShowSingleInput` added in `client/menu.lua` for consistent single-input dialogs.
+- `ValidateItemRequest` added to `server/callbacks.lua` to enforce stricter server-side item-request validation.
+- `EnsureTeamScores` added to `server/lobby.lua` for consistent team-score initialisation.
+- `SendLeaderboardVisibility` function introduced in `client/leaderboard.lua`; `Show`/`Hide` functions updated to use it.
+- Player teleportation now validates spawn locations before teleporting to prevent edge-case errors.
+- Inventory system configuration updated and arena inventory commands refined.
+- HTML updated with `aria-live` attributes on dynamic elements for accessibility; CSS improved for scrollbar visibility and HUD styling.
+- Match time expiration locale messages updated for clarity in English and Dutch (`locales/en.lua`, `locales/nl.lua`).
+
+### 📄 Documentation
+
+- Revised README installation steps for improved clarity and formatting.
+
+### 🐛 Bug Fixes
+
+- Fixed `fxmanifest.lua` version number that had been incorrectly bumped to `2.0.3`; reverted to `2.0.2`.
+
+---
+
 ## [2.0.1] - 2026-03-25
 
 > **Full diff**: [`2.0.0...2.0.1`](https://github.com/MattiVboiii/matti-airsoft/compare/2.0.0...2.0.1)
