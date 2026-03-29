@@ -28,38 +28,13 @@
 
 - Revised README installation steps for improved clarity and formatting.
 
-### 🐛 Bug Fixes
-
-- Fixed `fxmanifest.lua` version number that had been incorrectly bumped to `2.0.3`; reverted to `2.0.2`.
-
 ---
 
 ## [2.0.1] - 2026-03-25
 
 > **Full diff**: [`2.0.0...2.0.1`](https://github.com/MattiVboiii/matti-airsoft/compare/2.0.0...2.0.1)
 
-### ✨ New Features
-
-- **Saved inventories** — players' original items (name, amount, slot, metadata) are now saved server-side and fully restored after leaving the arena, replacing the old restore-credits system.
-- **Arena item whitelist** (`Config.ArenaItemWhitelist`) — items added to this list are never removed when a player enters or plays in the arena.
-- **Configurable killer fallback distance** (`Config.KillerFallbackDistance`, default `60.0`) — replaces the hardcoded 25-unit radius used when direct kill attribution fails.
-
-### 🔧 Improvements
-
-- Inventory slot and metadata are now preserved when saving and restoring a player's inventory, so items return to their original slots with their original data intact.
-- Removal notifications are now deduplicated: each disallowed item triggers at most one notification per arena session instead of one per lock interval tick.
-- `matti-airsoft:setLobbyLoadout` now resolves the loadout from the server-side `Config.Loadouts` by name; the client-supplied loadout object is no longer trusted directly.
-- `Utils.HandlePlayerItem` forwards slot and metadata to both `ox_inventory` and `qb-inventory` calls.
-
-### 🔒 Security & Validation
-
-- Added server-side input validation to lobby events (`createLobby`, `joinLobby`, `setGameMode`, `setLobbyLoadout`): lobby names are capped at 50 characters, lobby IDs are coerced to numbers, and game-mode values must be strings.
-- `matti-airsoft:giveItem` and `matti-airsoft:removeItem` now enforce stricter guards (amount bounds, type checks, loadout-grant verification) to prevent client-side exploitation.
-- Player disconnect cleanup extended to `loadoutGrantState`, `savedInventories`, and `pendingArenaStatusChecks`.
-
-### 📄 Documentation
-
-- Added `CHANGELOG.md` documenting all changes from `1.1.1` through `2.0.0`.
+Security & inventory patch — server-side saved inventories with full slot/metadata restore, arena item whitelist (`Config.ArenaItemWhitelist`), configurable killer fallback distance (`Config.KillerFallbackDistance`), server-side input validation on lobby events, stricter `giveItem`/`removeItem` guards, and deduplication of arena item-removal notifications. Added `CHANGELOG.md`.
 
 ---
 
