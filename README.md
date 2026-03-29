@@ -1,4 +1,4 @@
-# 🔫 matti-airsoft - Ultimate Airsoft Arena for QBCore
+# 🔫 matti-airsoft - Ultimate Airsoft Arena for QBCore / QBox / OXCore
 
 Welcome to the most thrilling airsoft experience for your FiveM server! This script brings competitive, safe airsoft battles to your players with complete customization options.
 
@@ -6,20 +6,27 @@ Welcome to the most thrilling airsoft experience for your FiveM server! This scr
 
 ### Core Gameplay
 
-- **Realistic Loadouts**: Choose from pre-configured or randomized weapon sets
+- **Realistic Loadouts**: Choose from pre-configured weapon sets with configurable pricing
 - **Dynamic Arenas**: Random spawn locations keep matches fresh and unpredictable
 - **Safety First**: Automatic ejection when players are "downed"
+- **Lobby System**: Players join a shared lobby; the lobby owner can adjust settings before and during matches
+- **Game Modes**: Free-for-all (FFA) and team-based deathmatch — lobby owner can toggle the mode from the UI
+- **Leaderboard**: Real-time kill tracking with a final scoreboard snapshot on exit (toggle with `Config.LeaderboardKey`)
+- **Match Timer**: Configurable time-limited rounds that automatically end the match when the clock runs out
+- **Ammo Replenishment**: Optionally replenish missing ammo on each respawn (`Config.RefillLoadoutAmmoOnRespawn`)
 
 ### Immersive Elements
 
 - **Interactive Peds**: Entry/Exit NPCs with full customization
-- **Visual Feedback**: Clear arena status notifications
+- **Visual Feedback**: Clear arena status notifications and killfeed styling
+- **Arena Inventory Lock**: Prevent players from bringing or using non-loadout items inside the arena
 - **Debug Tools**: Developer-friendly features for testing spawns and zones
 
 ### Framework Support
 
 - **Target Systems**: Works with both qb-target and ox_target
 - **Inventory Compatible**: Supports qb-inventory and ox_inventory
+- **Menu System**: Works with qb-menu and ox_lib
 - **Notification Options**: Choose between qb-core or ox_lib styles
 
 ## 🎮 Screenshot Gallery
@@ -145,8 +152,25 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 
 ## ⚙️ Config Notes
 
-- `Config.MaxItemEventAmount` sets a server-side hard cap for client-triggered item amount events.
-- Internal shared helpers now live in `shared/utils.lua` and are loaded via `fxmanifest.lua`.
+- `Config.Framework` — set to `'qb'` or `'qbx'` to match your server framework.
+- `Config.TargetSystem` — `'qb-target'` or `'ox_target'`.
+- `Config.MenuSystem` — `'qb-menu'` or `'ox_lib'`.
+- `Config.NotifySystem` — `'qb-core'` or `'ox_lib'`.
+- `Config.InventorySystem` — `'qb-inventory'` or `'ox_inventory'`.
+- `Config.ZoneType` — `'circle'` (radius-based) or `'poly'` (polygon points).
+- `Config.GameModes` / `Config.DefaultGameMode` — define available game modes (FFA, teams, etc.) and the default when a lobby is created.
+- `Config.DeathmatchEnabledByDefault` — when `true`, hit players respawn in the arena automatically (lobby owner can override).
+- `Config.EnforceArenaLoadoutItemsOnly` — when `true`, players can only keep loadout items while inside the arena. Recommended to prevent item smuggling.
+- `Config.ArenaItemLockIntervalMs` — interval (ms) between arena inventory enforcement checks. Don't set too low.
+- `Config.ArenaItemWhitelist` — items in this list are never removed when entering or playing in the arena.
+- `Config.LeaderboardEnabled` / `Config.LeaderboardKey` — toggle the kill leaderboard and set the keybind (default: F5).
+- `Config.LeaderboardAccentColor` — hex colour for leaderboard and killfeed accent styling.
+- `Config.ShowFinalScoreboardOnExit` — show a final scoreboard snapshot when a player leaves the arena.
+- `Config.MatchTimerEnabled` / `Config.MaxMatchDurationMinutes` — enable time-limited rounds and set the maximum duration.
+- `Config.RefillLoadoutAmmoOnRespawn` — replenishes only missing ammo up to the selected loadout amounts on each respawn.
+- `Config.KillerFallbackDistance` — fallback distance used to resolve the killer if direct attribution fails.
+- `Config.MaxItemEventAmount` — server-side hard cap for client-triggered item amount events.
+- Internal shared helpers live in `shared/utils.lua` and are loaded via `fxmanifest.lua`.
 
 ## ⚠️ Disclaimer(s)
 
@@ -156,8 +180,10 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 
 - Will I add support for ESX? No. I have no interest in supporting ESX and will not add compatibility for it. I will only support QBCore, QBox & OXCore (still WIP).
 
+- Although I added that it supports OXCore, I have absolutely no idea if that's true since I have never tried it, but I think it works 75%... So if you encounter any problems on OXCore, please reach out and we will figure out a solution together.
+
 - I currently use QBox for testing and development, I'm mostly too lazy to test on other frameworks. So I'm sorry in advance if there are any issues with other frameworks, but I will try my best to fix them if they come up.
 
 - Keep in mind that I made this script for fun and to learn, not to create a perfect product. If you want to contribute or help out, feel free to do so, PR's are always welcome!
 
-- The V2 of this script I believe will be the last major update, after that I will only add minor features, fix bugs and performance improvements.
+- The V2 of this script is considered feature-complete in terms of major overhauls. Future updates will focus on minor features, bug fixes, and performance improvements.
