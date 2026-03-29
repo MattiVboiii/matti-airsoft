@@ -141,8 +141,7 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 
 ## ⚙️ Dependencies
 
-- [ox_lib](https://github.com/overextended/ox_lib) - For version checking
-- [PolyZone](https://github.com/mkafrin/PolyZone) - Zone management
+- [ox_lib](https://github.com/overextended/ox_lib) - For version checking & creating zone
 
 ## ⚙️ Config Notes
 
