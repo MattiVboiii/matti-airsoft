@@ -84,6 +84,39 @@ local function RefillMissingLoadoutAmmo(playerId, loadout)
     end
 end
 
+local function GetAllowedArenaItemSet(loadout)
+    local allowed = Utils.GetArenaWhitelistSet()
+
+    local function addName(itemName)
+        local normalized = SharedUtils.NormalizeItemName(itemName)
+        if normalized then
+            allowed[normalized] = true
+        end
+    end
+
+    if loadout then
+        for _, weapon in ipairs(loadout.weapons or {}) do
+            addName(weapon.name)
+        end
+        for _, ammo in ipairs(loadout.ammo or {}) do
+            addName(ammo.name)
+        end
+        return allowed
+    end
+
+    for _, weaponName in ipairs(SharedUtils.GetLoadoutWeaponNames()) do
+        addName(weaponName)
+    end
+
+    for _, cfg in ipairs(Config.Loadouts or {}) do
+        for _, ammo in ipairs(cfg.ammo or {}) do
+            addName(ammo.name)
+        end
+    end
+
+    return allowed
+end
+
 local function IsLoadoutItem(loadout, itemName)
     local normalizedName = SharedUtils.NormalizeItemName(itemName)
     if not loadout or not normalizedName then
@@ -174,9 +207,11 @@ RegisterNetEvent('matti-airsoft:joinLobby', function(lobbyId)
 end)
 
 RegisterNetEvent('matti-airsoft:leaveLobby', function()
-    ResetPlayerSecurityState(source)
+    Utils.StripArenaLoadout(source)
     MatchState.ClearPlayer(source)
     Lobby.Leave(source)
+    Utils.RestorePlayerInventory(source)
+    ResetPlayerSecurityState(source)
 end)
 
 RegisterNetEvent('matti-airsoft:setGameMode', function(mode)
@@ -186,12 +221,12 @@ RegisterNetEvent('matti-airsoft:setGameMode', function(mode)
     Lobby.SetGameMode(source, mode)
 end)
 
-RegisterNetEvent('matti-airsoft:setDeathmatchEnabled', function(enabled)
+RegisterNetEvent('matti-airsoft:setLmsEnabled', function(enabled)
     if type(enabled) ~= 'boolean' then
         return
     end
 
-    Lobby.SetDeathmatchEnabled(source, enabled)
+    Lobby.SetLmsEnabled(source, enabled)
 end)
 
 RegisterNetEvent('matti-airsoft:setLobbyLoadout', function(loadout)
@@ -222,6 +257,39 @@ RegisterNetEvent('matti-airsoft:setMatchTimer', function(minutes)
         local timerText = normalizedMinutes == 0 and Lang:t('notifications.timer_disabled') or (normalizedMinutes .. ' ' .. Lang:t('menu.minutes'))
         TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('notifications.match_timer_set') .. ' ' .. timerText, 'success')
     end
+end)
+
+RegisterNetEvent('matti-airsoft:setScoreLimit', function(limit)
+    if Lobby.SetScoreLimit(source, limit) then
+        local normalizedLimit = tonumber(limit) or 0
+        local limitText = normalizedLimit == 0 and Lang:t('notifications.score_limit_disabled') or (normalizedLimit .. ' ' .. Lang:t('menu.kills'))
+        TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('notifications.score_limit_set') .. ' ' .. limitText, 'success')
+    end
+end)
+
+RegisterNetEvent('matti-airsoft:enterSpectator', function()
+    local playerId = source
+    local lobbyId = Data.playerLobbies[playerId] or Data.arenaStatLobbies[playerId]
+
+    if not lobbyId or Data.activeLobbyInArena ~= lobbyId then
+        return
+    end
+
+    if not Data.arenaStats[playerId] then
+        return
+    end
+
+    MatchState.SetSpectating(playerId, true)
+    Data.arenaPresence[playerId] = nil
+    Data.recentAttackers[playerId] = nil
+
+    local lobby = Data.lobbies[lobbyId]
+    if lobby then
+        Modes.OnPlayerEliminated(lobbyId, lobby, playerId)
+    end
+
+    Leaderboard.Broadcast(lobbyId)
+    Leaderboard.BroadcastArenaBoard()
 end)
 
 RegisterNetEvent('matti-airsoft:startLobbyGame', function()
@@ -264,6 +332,11 @@ local function CanPlayerModifyInventory(playerId)
     end
 
     if GetPlayerArenaLobby(playerId) then
+        return true
+    end
+
+    local lobbyId = Data.playerLobbies[playerId]
+    if lobbyId and Data.lobbies[lobbyId] and Data.activeLobbyInArena == lobbyId then
         return true
     end
 
@@ -368,6 +441,10 @@ RegisterNetEvent('matti-airsoft:playerWasHit', function(shouldCreditKiller)
         return
     end
 
+    if Utils.IsSpawnProtected(victimId) then
+        return
+    end
+
     local killerId = Utils.GetRecentAttacker(victimId)
     local creditKiller = shouldCreditKiller == true
 
@@ -410,22 +487,13 @@ RegisterServerEvent('matti-airsoft:revivePlayer', function()
         return
     end
 
-    if Config.Framework == 'ox' then
-        if OxCore then
-            local player = OxCore.GetPlayer(source)
-            if player then
-                player.revive()
-            end
-        end
-    elseif Config.Framework == 'qb' then
-        TriggerClientEvent('hospital:client:Revive', source)
-    elseif Config.Framework == 'qbx' then
-        exports.qbx_medical:Revive(source)
-    end
+    Utils.RevivePlayer(source)
 
     if Config.Debug then
         print(' Player ' .. source .. ' revived in arena')
     end
+
+    Utils.ApplySpawnProtection(source)
 end)
 
 RegisterServerEvent('matti-airsoft:giveWeapon', function(weaponName)
@@ -476,26 +544,101 @@ RegisterServerEvent('matti-airsoft:giveItem', function(itemName, amount, metadat
 end)
 
 RegisterNetEvent('matti-airsoft:restoreItems', function()
+    Utils.RestorePlayerInventory(source)
+    ResetPlayerSecurityState(source)
+end)
+
+RegisterNetEvent('matti-airsoft:enforceArenaInventory', function()
     local playerId = source
-    local savedInventory = Data.savedInventories and Data.savedInventories[playerId]
-    if not savedInventory or #savedInventory == 0 then
+    if not Utils.Throttle(playerId, 'enforceArenaInventory', 400) then
+        return
+    end
+
+    if not Config.EnforceArenaLoadoutItemsOnly then
+        return
+    end
+
+    if not CanPlayerModifyInventory(playerId) then
+        return
+    end
+
+    local lobby = GetPlayerArenaLobby(playerId)
+    if not lobby then
+        return
+    end
+
+    Utils.StashDisallowedArenaItems(playerId, GetAllowedArenaItemSet(lobby.selectedLoadout))
+end)
+
+local function GrantSelectedLoadout(playerId)
+    local lobbyId = Data.playerLobbies[playerId]
+    local lobby = lobbyId and Data.lobbies[lobbyId]
+    if not lobby or not lobby.selectedLoadout or Data.activeLobbyInArena ~= lobbyId then
+        return false
+    end
+
+    local state = EnsureLoadoutGrantState(playerId, lobby)
+    if state.issuedAny then
+        Utils.MarkLoadoutReady(playerId, true)
+        return true
+    end
+
+    if not Utils.GivePlayerLoadout(playerId, lobby.selectedLoadout) then
+        return false
+    end
+
+    for _, bucket in pairs(state.grants) do
+        for itemName in pairs(bucket) do
+            bucket[itemName] = 0
+        end
+    end
+    state.issuedAny = true
+    Utils.MarkLoadoutReady(playerId, true)
+    return true
+end
+
+lib.callback.register('matti-airsoft:stashPlayerInventory', function(source)
+    if not CanPlayerModifyInventory(source) then
+        return false
+    end
+
+    return Utils.StashAndClearInventory(source)
+end)
+
+lib.callback.register('matti-airsoft:prepareArenaLoadout', function(playerId, price)
+    local lobbyId = Data.playerLobbies[playerId]
+    local lobby = lobbyId and Data.lobbies[lobbyId]
+    if not lobby or not lobby.selectedLoadout or Data.activeLobbyInArena ~= lobbyId then
+        return false
+    end
+
+    local normalizedPrice = tonumber(price) or 0
+    if normalizedPrice > 0 and not Utils.RemoveMoney(playerId, normalizedPrice, 'Airsoft Loadout') then
+        return 'cannot_afford'
+    end
+
+    if not Data.inventoryStashed or not Data.inventoryStashed[playerId] then
+        Utils.StashAndClearInventory(playerId)
+    end
+
+    if not GrantSelectedLoadout(playerId) then
+        Utils.RestorePlayerInventory(playerId)
         ResetPlayerSecurityState(playerId)
+        if normalizedPrice > 0 then
+            Utils.AddMoney(playerId, normalizedPrice, 'Airsoft Loadout Refund')
+        end
+        return false
+    end
+
+    return true
+end)
+
+RegisterNetEvent('matti-airsoft:stripLoadout', function()
+    if not CanPlayerModifyInventory(source) then
         return
     end
 
-    if GetPlayerArenaLobby(playerId) then
-        return
-    end
-
-    Data.savedInventories[playerId] = nil
-    ResetPlayerSecurityState(playerId)
-
-    for _, item in ipairs(savedInventory) do
-        Utils.HandlePlayerItem(playerId, item.name, item.amount, 'add', {
-            metadata = item.metadata,
-            slot = item.slot,
-        })
-    end
+    Utils.StripArenaLoadout(source)
 end)
 
 RegisterServerEvent('matti-airsoft:removeWeapon', function(weaponName)

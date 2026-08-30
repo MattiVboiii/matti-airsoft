@@ -116,10 +116,11 @@ function Lobby.Create(playerId, lobbyName)
 			[playerId] = { id = playerId, name = playerName },
 		},
 		gameMode = Lobby.GetDefaultGameMode(),
-		deathmatchEnabled = Config.DeathmatchEnabledByDefault ~= false,
+		lmsEnabled = false,
 		selectedLoadout = nil,
 		matchTimer = (Config.DefaultMatchDurationMinutes or 5) * 60,
 		maxPlayers = Config.MaxLobbyPlayers or 16,
+		scoreLimit = Config.DefaultScoreLimit or 0,
 	}
 
 	Data.playerLobbies[playerId] = lobbyId
@@ -287,7 +288,7 @@ function Lobby.SetLoadout(playerId, loadout)
 	return true
 end
 
-function Lobby.SetDeathmatchEnabled(playerId, enabled)
+function Lobby.SetLmsEnabled(playerId, enabled)
 	local lobbyId = Data.playerLobbies[playerId]
 
 	if not lobbyId or not Data.lobbies[lobbyId] then
@@ -302,10 +303,10 @@ function Lobby.SetDeathmatchEnabled(playerId, enabled)
 		return false
 	end
 
-	lobby.deathmatchEnabled = enabled == true
+	lobby.lmsEnabled = enabled == true
 
 	if Config.Debug then
-		print(" Lobby " .. lobbyId .. " deathmatch set to: " .. tostring(lobby.deathmatchEnabled))
+		print(" Lobby " .. lobbyId .. " LMS set to: " .. tostring(lobby.lmsEnabled))
 	end
 
 	for pid, _ in pairs(lobby.players) do
@@ -357,6 +358,36 @@ function Lobby.SetMatchTimer(playerId, minutes)
 	return true
 end
 
+function Lobby.SetScoreLimit(playerId, scoreLimit)
+	local lobbyId = Data.playerLobbies[playerId]
+
+	if not lobbyId or not Data.lobbies[lobbyId] then
+		TriggerClientEvent("matti-airsoft:sendNotification", playerId, Lang:t("notifications.not_in_lobby"), "error")
+		return false
+	end
+
+	local lobby = Data.lobbies[lobbyId]
+
+	if lobby.host ~= playerId then
+		TriggerClientEvent("matti-airsoft:sendNotification", playerId, Lang:t("notifications.not_host"), "error")
+		return false
+	end
+
+	local normalizedLimit = tonumber(scoreLimit) or 0
+	if normalizedLimit < 0 or normalizedLimit > 100 then
+		TriggerClientEvent("matti-airsoft:sendNotification", playerId, Lang:t("notifications.invalid_score_limit"), "error")
+		return false
+	end
+
+	lobby.scoreLimit = normalizedLimit
+
+	for pid, _ in pairs(lobby.players) do
+		TriggerClientEvent("matti-airsoft:lobbyUpdated", pid, lobby)
+	end
+
+	return true
+end
+
 function Lobby.StartGame(playerId)
 	local lobbyId = Data.playerLobbies[playerId]
 
@@ -388,7 +419,12 @@ function Lobby.StartGame(playerId)
 	end
 
 	Data.activeLobbyInArena = lobbyId
+	Data.matchRecap = Data.matchRecap or {}
+	Data.matchRecap[lobbyId] = nil
+	Data.matchStartedAt = Data.matchStartedAt or {}
+	Data.matchStartedAt[lobbyId] = os.time()
 
+	Modes.OnMatchStart(lobbyId, lobby)
 	MatchState.SetLobby(lobbyId, true)
 	TriggerEvent("matti-airsoft:matchStarted", lobbyId, lobby)
 
@@ -405,9 +441,12 @@ function Lobby.StartGame(playerId)
 			pid,
 			lobby.selectedLoadout,
 			lobby.gameMode,
-			lobby.deathmatchEnabled == true
+			Modes.ShouldRespawn(lobby),
+			lobby.scoreLimit or 0
 		)
 	end
+
+	Leaderboard.BroadcastArenaBoard()
 
 	if Config.Debug then
 		print(" Game started in lobby: " .. lobbyId)

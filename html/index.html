@@ -12,6 +12,7 @@
       <div id="timer-display" class="timer-container" style="display: none">
         <div class="timer-content">
           <span id="timer-text">10:00</span>
+          <span id="score-limit-text" class="score-limit-text"></span>
         </div>
       </div>
       <div
@@ -31,6 +32,7 @@
                 <th>#</th>
                 <th id="col-player">Player</th>
                 <th id="col-team">Team</th>
+                <th id="col-tier" class="gungame-column" style="display: none">Tier</th>
                 <th>K</th>
                 <th>D</th>
                 <th>K/D</th>
@@ -53,6 +55,7 @@
         <div class="leaderboard-header final-scoreboard-header">
           <h1 id="final-scoreboard-title">🏁 FINAL SCOREBOARD</h1>
           <h2 id="final-scoreboard-subtitle">Match Results</h2>
+          <div id="match-recap" class="match-recap" style="display: none"></div>
         </div>
         <div class="leaderboard-content final-scoreboard-content">
           <table>
@@ -61,6 +64,7 @@
                 <th>#</th>
                 <th id="final-col-player">Player</th>
                 <th id="final-col-team">Team</th>
+                <th id="final-col-tier" class="gungame-column" style="display: none">Tier</th>
                 <th>K</th>
                 <th>D</th>
                 <th>K/D</th>
@@ -80,6 +84,18 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div id="arena-board" class="arena-board" style="display: none" aria-live="polite">
+      <div class="arena-board-header">
+        <h3 id="arena-board-title">Live Match</h3>
+        <p id="arena-board-mode"></p>
+      </div>
+      <div class="arena-board-meta">
+        <span id="arena-board-timer"></span>
+        <span id="arena-board-score-limit"></span>
+      </div>
+      <div id="arena-board-rows" class="arena-board-rows"></div>
     </div>
     <script src="script.js"></script>
   </body>

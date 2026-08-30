@@ -6,7 +6,7 @@ Config.TargetSystem = "ox_target" -- Options: 'qb-target' or 'ox_target'
 Config.MenuSystem = "ox_lib" -- Options: 'qb-menu' or 'ox_lib'
 Config.NotifySystem = "ox_lib" -- Options: 'qb-core' or 'ox_lib'
 Config.InventorySystem = "ox_inventory" -- Options: 'qb-inventory' or 'ox_inventory'
-Config.EnforceArenaLoadoutItemsOnly = true -- Strip non-loadout items while in the arena
+Config.EnforceArenaLoadoutItemsOnly = true -- Stash non-loadout items while in the arena (returned on exit)
 Config.ArenaItemLockIntervalMs = 1500 -- How often to scan inventory (ms). Don't set too low.
 Config.ArenaItemWhitelist = { -- Items never removed when entering the arena
 	-- 'water',
@@ -17,15 +17,19 @@ Config.LeaderboardEnabled = true
 Config.LeaderboardAccentColor = "#EC213A"
 Config.ShowFinalScoreboardOnExit = true
 
--- Match timer
+-- Match timer (host can change duration in the lobby menu)
 Config.MatchTimerEnabled = true
 Config.MaxMatchDurationMinutes = 10
-Config.DefaultMatchDurationMinutes = 5
+Config.DefaultMatchDurationMinutes = 5 -- Default for new lobbies; host can override in-game
+
+-- Gameplay
+Config.RefillLoadoutAmmoOnRespawn = true
+Config.DefaultScoreLimit = 15 -- Default for new lobbies; host can override in-game (0 = timer only)
+Config.SpawnProtectionSeconds = 3 -- Invulnerability after spawn (0 = off)
 
 -- Lobby
 Config.DefaultGameMode = "ffa"
 Config.MaxLobbyPlayers = 16
-Config.DeathmatchEnabledByDefault = true -- When enabled, hit players respawn in the arena
 
 Config.GameModes = {
 	{
@@ -43,6 +47,14 @@ Config.GameModes = {
 		icon = "fas fa-users",
 		iconColor = "#9b59b6",
 		teamBased = true,
+	},
+	{
+		id = "gungame",
+		label = "menu.gungame",
+		description = "menu.gungame_desc",
+		icon = "fas fa-layer-group",
+		iconColor = "#3498db",
+		teamBased = false,
 	},
 }
 
@@ -80,10 +92,6 @@ Config.SpawnLocations = {
 
 Config.ReturnLocation = vector3(2024.36, 2846.33, 50.26)
 
--- Gameplay
-Config.TeleportOnHit = true
-Config.RefillLoadoutAmmoOnRespawn = true
-
 -- Map blip
 Config.AirsoftBlip = {
 	enabled = true,
@@ -95,6 +103,7 @@ Config.AirsoftBlip = {
 }
 
 -- Loadouts (weapons here are also used for kill tracking)
+-- Item names must exist in ox_inventory (Weapons/Ammo in data/weapons.lua) or qb-inventory items.
 Config.Loadouts = {
 	{
 		name = "Loadout 1",
@@ -102,7 +111,7 @@ Config.Loadouts = {
 			{ name = "weapon_pistol", label = "Pistol" },
 		},
 		ammo = {
-			{ name = "pistol_ammo", amount = 10 },
+			{ name = "ammo-9", amount = 48 },
 		},
 		price = 100,
 	},
@@ -112,7 +121,7 @@ Config.Loadouts = {
 			{ name = "weapon_airsoftm4", label = "Assault Rifle" },
 		},
 		ammo = {
-			{ name = "rifle_ammo", amount = 10 },
+			{ name = "ammo-airsoft", amount = 100 },
 		},
 		price = 100,
 	},
@@ -122,12 +131,12 @@ Config.Loadouts = {
 			{ name = "weapon_airsoftr870", label = "Shotgun" },
 		},
 		ammo = {
-			{ name = "shotgun_ammo", amount = 10 },
+			{ name = "ammo-airsoft", amount = 50 },
 		},
 		price = 100,
 	},
 	{
-		name = "Loadout 4 (OX)",
+		name = "Loadout 4",
 		weapons = {
 			{ name = "weapon_airsoftglock20", label = "Pistol" },
 		},

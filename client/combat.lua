@@ -23,6 +23,29 @@ function Combat.IsTrackedWeapon(weaponHash)
 	return weaponHash and trackedWeaponHashes[weaponHash] == true
 end
 
+function Combat.IsSpawnProtected()
+	if not State.spawnProtectedUntil then
+		return false
+	end
+	return GetGameTimer() < State.spawnProtectedUntil
+end
+
+function Combat.ShouldEnterSpectator()
+	if State.shouldEnterSpectator ~= nil then
+		return State.shouldEnterSpectator == true
+	end
+
+	return SharedUtils.IsLmsEnabled(State.currentLobby)
+end
+
+function Combat.ShouldRespawn()
+	if State.shouldRespawn ~= nil then
+		return State.shouldRespawn == true
+	end
+
+	return not SharedUtils.IsLmsEnabled(State.currentLobby)
+end
+
 function Combat.ResolveTrackedWeapon(attackerPed, eventWeaponHash, victimPed)
 	if Combat.IsTrackedWeapon(eventWeaponHash) then
 		return eventWeaponHash
@@ -148,7 +171,7 @@ function Combat.TrackDamage()
 		local eventWeaponHash = data[7]
 		local playerPed = PlayerPedId()
 
-		if victim ~= playerPed or not State.isInArena then
+		if victim ~= playerPed or not State.isInArena or State.isSpectating or Combat.IsSpawnProtected() then
 			return
 		end
 
@@ -212,14 +235,32 @@ function Combat.TrackDamage()
 	end)
 end
 
+local function HandleEliminationAfterHit(wasStunned)
+	Utils.SendNotification(Lang:t("spectator.eliminated"), "info")
+
+	if wasStunned then
+		Wait(500)
+		TriggerServerEvent("matti-airsoft:revivePlayer")
+		Wait(300)
+	else
+		Wait(1000)
+		TriggerServerEvent("matti-airsoft:revivePlayer")
+		Wait(300)
+	end
+
+	Loadout.Remove()
+	Leaderboard.Hide()
+	TriggerServerEvent("matti-airsoft:enterSpectator")
+end
+
 function Combat.CheckHitStatus()
 	Citizen.CreateThread(function()
-		while State.isInArena do
+		while State.isInArena and not State.isSpectating do
 			Wait(100)
 			local playerPed = PlayerPedId()
 
 			if IsPedBeingStunned(playerPed, 0) or IsEntityDead(playerPed) then
-				if not State.isHit then
+				if not State.isHit and not Combat.IsSpawnProtected() then
 					State.isHit = true
 
 					local killerId, shouldCreditKiller, killerPed, causeOfDeath = Combat.ResolveKillerId(playerPed)
@@ -252,37 +293,20 @@ function Combat.CheckHitStatus()
 							print(" Starting revive logic. Was stunned: " .. tostring(wasStunned))
 						end
 
-						local deathmatchEnabled = Config.DeathmatchEnabledByDefault ~= false
-						if State.currentLobby then
-							deathmatchEnabled = State.currentLobby.deathmatchEnabled == true
-						end
-
-						if Config.TeleportOnHit then
-							if deathmatchEnabled then
-								Utils.SendNotification(Lang:t("inarena.shot"))
-								Wait(2000)
-								Player.TeleportToRandomPosition()
-							else
-								Utils.SendNotification(Lang:t("inarena.shotandout"))
-								-- Run full exit flow so HUD/NUI always gets cleaned when eliminated.
-								TriggerEvent("matti-airsoft:exitArena")
-							end
-						else
+						if Combat.ShouldRespawn() then
 							Utils.SendNotification(Lang:t("inarena.shot"))
-						end
+							Wait(2000)
+							Player.TeleportToRandomPosition()
 
-						if wasStunned then
-							if Config.Debug then
-								print(" Player was stunned, reviving immediately")
+							if wasStunned then
+								Wait(500)
+								TriggerServerEvent("matti-airsoft:revivePlayer")
+							else
+								Wait(1000)
+								TriggerServerEvent("matti-airsoft:revivePlayer")
 							end
-							Wait(500)
-							TriggerServerEvent("matti-airsoft:revivePlayer")
 						else
-							if Config.Debug then
-								print(" Player in laststand/death, reviving from laststand")
-							end
-							Wait(1000)
-							TriggerServerEvent("matti-airsoft:revivePlayer")
+							HandleEliminationAfterHit(wasStunned)
 						end
 					end)
 				end
@@ -292,3 +316,20 @@ function Combat.CheckHitStatus()
 		end
 	end)
 end
+
+RegisterNetEvent("matti-airsoft:gunGameStageChanged", function(stageIndex, totalStages, weaponName)
+	if not State.isInArena or State.isSpectating then
+		return
+	end
+
+	local weaponHash = GetHashKey(weaponName)
+	if weaponHash and weaponHash ~= 0 then
+		GiveWeaponToPed(PlayerPedId(), weaponHash, 250, false, true)
+		SetCurrentPedWeapon(PlayerPedId(), weaponHash, true)
+	end
+
+	Utils.SendNotification(
+		Lang:t("notifications.gungame_stage", { stage = stageIndex, total = totalStages }),
+		"info"
+	)
+end)

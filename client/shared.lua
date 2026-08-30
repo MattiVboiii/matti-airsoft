@@ -1,14 +1,76 @@
 QBCore = nil
-if Config.Framework == 'qb' or Config.Framework == 'qbx' then
-    QBCore = exports['qb-core']:GetCoreObject()
+Framework = {}
+
+if Config.Framework == 'qb' then
+    if GetResourceState('qb-core') == 'started' then
+        QBCore = exports['qb-core']:GetCoreObject()
+    end
+elseif Config.Framework == 'qbx' then
+    if GetResourceState('qb-core') == 'started' then
+        QBCore = exports['qb-core']:GetCoreObject()
+    end
+end
+
+function Framework.TriggerCallback(name, cb, ...)
+    lib.callback(name, false, cb, ...)
+end
+
+function Framework.AwaitCallback(name, ...)
+    return lib.callback.await(name, false, ...)
+end
+
+function Framework.GetPlayerData()
+    if Config.Framework == 'ox' then
+        local ok, player = pcall(function()
+            if Ox and Ox.GetPlayer then
+                return Ox.GetPlayer()
+            end
+            return exports.ox_core:GetPlayer()
+        end)
+        if ok and player then
+            return {
+                charinfo = {
+                    firstname = (player.get and player.get('firstName')) or player.firstName,
+                    lastname = (player.get and player.get('lastName')) or player.lastName,
+                },
+                items = {},
+            }
+        end
+        return {}
+    end
+
+    if Config.Framework == 'qbx' then
+        local ok, data = pcall(function()
+            return exports.qbx_core:GetPlayerData()
+        end)
+        if ok and data then
+            return data
+        end
+        if QBX and QBX.PlayerData then
+            return QBX.PlayerData
+        end
+    end
+
+    if QBCore and QBCore.Functions and QBCore.Functions.GetPlayerData then
+        return QBCore.Functions.GetPlayerData() or {}
+    end
+
+    return {}
 end
 
 State = {
     isHit = false,
     isInArena = false,
+    isSpectating = false,
+    shouldRespawn = nil,
+    shouldEnterSpectator = nil,
+    scoreLimit = 0,
+    spawnProtectedUntil = nil,
+    arenaBoardPayload = nil,
     leaderboardVisible = false,
     finalScoreboardVisible = false,
     cachedLeaderboardRows = {},
+    cachedMatchRecap = nil,
     airsoftZone = nil,
     currentLoadout = nil,
     currentLobby = nil,
@@ -32,16 +94,12 @@ function Utils.TableCount(t)
 end
 
 function Utils.GetPlayerName()
-    if not QBCore or not QBCore.Functions then
-        return 'Unknown Player'
-    end
-
-    local player = QBCore.Functions.GetPlayerData()
+    local player = Framework.GetPlayerData()
     if player and player.charinfo then
-        return player.charinfo.firstname .. ' ' .. player.charinfo.lastname
+        return (player.charinfo.firstname or '') .. ' ' .. (player.charinfo.lastname or '')
     end
 
-    return 'Unknown Player'
+    return GetPlayerName(PlayerId()) or 'Unknown Player'
 end
 
 function Utils.SendNotification(message, type)
@@ -75,4 +133,8 @@ end
 
 RegisterNetEvent('matti-airsoft:sendNotification', function(message, type)
     Utils.SendNotification(message, type)
+end)
+
+RegisterNetEvent('matti-airsoft:client:revive', function()
+    Player.Revive()
 end)

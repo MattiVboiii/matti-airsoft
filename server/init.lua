@@ -1,12 +1,21 @@
 AddEventHandler('playerDropped', function()
     local src = source
 
+    Utils.StripArenaLoadout(src)
+    Utils.RestorePlayerInventory(src)
+
     Data.recentAttackers[src] = nil
     if Data.loadoutGrantState then
         Data.loadoutGrantState[src] = nil
     end
     if Data.savedInventories then
         Data.savedInventories[src] = nil
+    end
+    if Data.inventoryStashed then
+        Data.inventoryStashed[src] = nil
+    end
+    if Data.loadoutReadyUntil then
+        Data.loadoutReadyUntil[src] = nil
     end
     if Data.eventRateLimits then
         Data.eventRateLimits[src] = nil
@@ -53,7 +62,7 @@ local function TickActiveLobbyTimer(activeLobbyId)
         print(' Match time expired in lobby: ' .. activeLobbyId)
     end
 
-    Leaderboard.FinalizeMatch(activeLobbyId)
+    ModesShared.EndMatch(activeLobbyId, 'timer')
 end
 
 local function ReconcileArenaPresence()

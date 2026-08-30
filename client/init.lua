@@ -4,6 +4,7 @@ local function BuildLeaderboardTranslations()
 		subtitle = Lang:t("leaderboard.subtitle"),
 		columnPlayer = Lang:t("leaderboard.column_player"),
 		columnTeam = Lang:t("leaderboard.column_team"),
+		columnTier = Lang:t("leaderboard.column_tier"),
 		teamTotals = Lang:t("leaderboard.team_totals"),
 		totalKills = Lang:t("leaderboard.total_kills"),
 		noPlayers = Lang:t("leaderboard.no_players"),
@@ -11,6 +12,11 @@ local function BuildLeaderboardTranslations()
 		team2 = Lang:t("leaderboard.team2"),
 		noTeam = Lang:t("leaderboard.no_team"),
 		ffa = Lang:t("leaderboard.ffa"),
+		firstToKills = Lang:t("leaderboard.first_to_kills"),
+		mvp = Lang:t("leaderboard.mvp"),
+		bestStreak = Lang:t("leaderboard.best_streak"),
+		winReason = Lang:t("leaderboard.win_reason"),
+		arenaBoardTitle = Lang:t("leaderboard.arena_board_title"),
 	}
 end
 
@@ -60,4 +66,5 @@ Citizen.CreateThread(function()
 	Combat.TrackDamage()
 	Interaction.StartDamageFilter()
 	Leaderboard.HandleKeybind()
+	ArenaBoard.StartProximityLoop()
 end)

@@ -7,7 +7,7 @@ local function GetPlayerIdentifier(playerId)
     end
 
     if Config.Framework == 'ox' then
-        return player.get and player.get('charId') or nil
+        return player.charId or (player.get and player.get('charId')) or nil
     end
 
     if player.PlayerData and player.PlayerData.citizenid then

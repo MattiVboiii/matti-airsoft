@@ -23,6 +23,8 @@ client_scripts({
 	'client/loadout.lua',
 	'client/interaction.lua',
 	'client/combat.lua',
+	'client/spectator.lua',
+	'client/arena_board.lua',
 	'client/leaderboard.lua',
 	'client/zone.lua',
 	'client/menu.lua',
@@ -34,6 +36,11 @@ server_scripts({
 	'@oxmysql/lib/MySQL.lua',
 	'server/shared.lua',
 	'server/match.lua',
+	'server/modes/shared.lua',
+	'server/modes/init.lua',
+	'server/modes/ffa.lua',
+	'server/modes/teams.lua',
+	'server/modes/gungame.lua',
 	'server/stats.lua',
 	'server/lobby.lua',
 	'server/leaderboard.lua',
@@ -44,11 +51,11 @@ server_scripts({
 })
 
 shared_scripts({
-	'config.lua',
-	'shared/utils.lua',
-	'@qb-core/shared/locale.lua',
-	'locales/*.lua',
 	'@ox_lib/init.lua',
+	'config.lua',
+	'shared/locale.lua',
+	'shared/utils.lua',
+	'locales/*.lua',
 })
 
 dependencies {

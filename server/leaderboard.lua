@@ -1,35 +1,5 @@
 Leaderboard = {}
 
-local function CountAlivePlayersInLobby(lobbyId)
-	if not lobbyId then
-		return 0
-	end
-
-	local aliveCount = 0
-	for playerId, isAlive in pairs(Data.arenaPresence) do
-		if isAlive and Data.arenaStatLobbies[playerId] == lobbyId then
-			aliveCount = aliveCount + 1
-		end
-	end
-
-	return aliveCount
-end
-
-local function CountTrackedPlayersForLobby(lobbyId)
-	if not lobbyId then
-		return 0
-	end
-
-	local trackedCount = 0
-	for playerId, trackedLobbyId in pairs(Data.arenaStatLobbies) do
-		if trackedLobbyId == lobbyId and Data.arenaStats[playerId] then
-			trackedCount = trackedCount + 1
-		end
-	end
-
-	return trackedCount
-end
-
 function Leaderboard.FinalizeMatch(lobbyId)
 	if not lobbyId then
 		return
@@ -46,6 +16,8 @@ function Leaderboard.FinalizeMatch(lobbyId)
 	TriggerEvent("matti-airsoft:matchEnded", lobbyId)
 	MatchState.SetLobby(lobbyId, false)
 	Data.activeLobbyInArena = nil
+	Data.gunGameLevel = Data.gunGameLevel or {}
+	Data.gunGameLevel[lobbyId] = nil
 end
 
 function Leaderboard.ClearLobbyStats(lobbyId)
@@ -102,13 +74,21 @@ end
 
 function Leaderboard.BuildRows()
 	local leaderboard = {}
+	local lobbyId = Data.activeLobbyInArena
+	local lobby = lobbyId and Data.lobbies[lobbyId] or nil
+	local gunGameStages = SharedUtils.IsGunGameMode(lobby and lobby.gameMode) and #SharedUtils.GetGunGameStages() or nil
 
 	for playerId, stats in pairs(Data.arenaStats) do
-		local lobbyId = Data.playerLobbies[playerId] or Data.arenaStatLobbies[playerId]
-		local lobby = lobbyId and Data.lobbies[lobbyId] or nil
-		local isTeamsMode = lobby and Lobby.IsTeamBasedMode(lobby.gameMode)
+		local playerLobbyId = Data.playerLobbies[playerId] or Data.arenaStatLobbies[playerId]
+		local playerLobby = playerLobbyId and Data.lobbies[playerLobbyId] or nil
+		local isTeamsMode = playerLobby and Lobby.IsTeamBasedMode(playerLobby.gameMode)
 		local playerTeam = isTeamsMode and Data.playerTeams[playerId] or nil
-		local lobbyTeamScores = (isTeamsMode and lobbyId and Data.teamScores[lobbyId]) or nil
+		local lobbyTeamScores = (isTeamsMode and playerLobbyId and Data.teamScores[playerLobbyId]) or nil
+		local gunGameLevel = nil
+
+		if gunGameStages and playerLobbyId == lobbyId then
+			gunGameLevel = GunGame.GetPlayerLevel(lobbyId, playerId)
+		end
 
 		table.insert(leaderboard, {
 			name = stats.name,
@@ -119,10 +99,69 @@ function Leaderboard.BuildRows()
 			teamKills = playerTeam and Leaderboard.GetTeamScoreForPlayer(playerId) or nil,
 			team1Kills = lobbyTeamScores and (lobbyTeamScores.team1 or 0) or nil,
 			team2Kills = lobbyTeamScores and (lobbyTeamScores.team2 or 0) or nil,
+			gunGameLevel = gunGameLevel,
+			gunGameTotal = gunGameStages,
+			streak = stats.streak or 0,
 		})
 	end
 
 	return leaderboard
+end
+
+function Leaderboard.BuildMatchRecap(lobbyId, reason)
+	local lobby = lobbyId and Data.lobbies[lobbyId] or nil
+	local rows = Leaderboard.BuildRows()
+	local mvp = nil
+	local bestStreak = nil
+
+	for _, row in ipairs(rows) do
+		if not mvp or row.kills > mvp.kills then
+			mvp = row
+		end
+		if not bestStreak or (row.streak or 0) > (bestStreak.streak or 0) then
+			bestStreak = row
+		end
+	end
+
+	for playerId, stats in pairs(Data.arenaStats) do
+		if Data.arenaStatLobbies[playerId] == lobbyId and (not mvp or stats.kills > mvp.kills) then
+			mvp = {
+				name = stats.name,
+				kills = stats.kills,
+				deaths = stats.deaths,
+				streak = stats.bestStreak or 0,
+			}
+		end
+		if Data.arenaStatLobbies[playerId] == lobbyId and stats.bestStreak and (not bestStreak or stats.bestStreak > (bestStreak.streak or 0)) then
+			bestStreak = {
+				name = stats.name,
+				streak = stats.bestStreak,
+			}
+		end
+	end
+
+	return {
+		reason = reason,
+		mode = lobby and lobby.gameMode or "ffa",
+		mvp = mvp,
+		bestStreak = bestStreak,
+		rows = rows,
+		teamScores = lobbyId and Data.teamScores[lobbyId] or nil,
+	}
+end
+
+function Leaderboard.BuildMatchHud(lobbyId)
+	local lobby = lobbyId and Data.lobbies[lobbyId] or nil
+	if not lobby then
+		return nil
+	end
+
+	return {
+		mode = lobby.gameMode,
+		timer = lobby.matchTimer,
+		scoreLimit = lobby.scoreLimit or 0,
+		rows = Leaderboard.BuildRows(),
+	}
 end
 
 function Leaderboard.AddPlayer(playerId)
@@ -133,18 +172,15 @@ function Leaderboard.AddPlayer(playerId)
 	end
 
 	Data.arenaPresence[playerId] = true
+	ModesShared.EnsurePlayerStats(playerId)
 
-	if not Data.arenaStats[playerId] then
-		Data.arenaStats[playerId] = {
-			name = Utils.GetPlayerName(playerId),
-			kills = 0,
-			deaths = 0,
-		}
+	if SharedUtils.IsGunGameMode(Data.lobbies[lobbyId] and Data.lobbies[lobbyId].gameMode) then
+		GunGame.InitializePlayer(lobbyId, playerId)
 	end
 
-	Data.arenaStats[playerId].name = Utils.GetPlayerName(playerId)
-
 	Leaderboard.Broadcast()
+	Leaderboard.BroadcastArenaBoard()
+	Utils.ApplySpawnProtection(playerId)
 end
 
 function Leaderboard.RemovePlayer(playerId, options)
@@ -167,92 +203,26 @@ function Leaderboard.RemovePlayer(playerId, options)
 	if lobbyId and Data.activeLobbyInArena == lobbyId then
 		local lobby = Data.lobbies[lobbyId]
 		if lobby then
-			local alivePlayers = CountAlivePlayersInLobby(lobbyId)
-			local trackedPlayers = CountTrackedPlayersForLobby(lobbyId)
-			local isDeathmatch = lobby.deathmatchEnabled == true
-
-			-- In non-deathmatch, end early when only one (or zero) players are still alive.
-			if not isDeathmatch and trackedPlayers > 1 and alivePlayers <= 1 then
-				for pid, isAlive in pairs(Data.arenaPresence) do
-					if isAlive and Data.arenaStatLobbies[pid] == lobbyId then
-						TriggerClientEvent("matti-airsoft:matchEndedElimination", pid)
-					end
-				end
-
-				Leaderboard.FinalizeMatch(lobbyId)
-
-				if Config.Debug then
-					print(
-						" Match ended early in lobby "
-							.. lobbyId
-							.. " (non-deathmatch elimination). Alive="
-							.. alivePlayers
-							.. ", tracked="
-							.. trackedPlayers
-					)
-				end
-			elseif alivePlayers == 0 then
-				if Config.Debug then
-					print(" Arena cleared - lobby " .. lobbyId .. " has no more players in arena")
-				end
-
-				Leaderboard.FinalizeMatch(lobbyId)
-			end
+			Modes.OnPlayerEliminated(lobbyId, lobby, playerId)
 		end
 	end
 
 	Leaderboard.Broadcast()
+	Leaderboard.BroadcastArenaBoard()
 end
 
 function Leaderboard.RecordHit(victimId, killerId, creditKiller)
-	if not Data.arenaStats[victimId] then
-		Data.arenaStats[victimId] = {
-			name = Utils.GetPlayerName(victimId),
-			kills = 0,
-			deaths = 0,
-		}
+	local victimLobbyId = Data.playerLobbies[victimId] or Data.arenaStatLobbies[victimId]
+	local lobby = victimLobbyId and Data.lobbies[victimLobbyId] or nil
+	if not lobby or Data.activeLobbyInArena ~= victimLobbyId then
+		return
 	end
 
+	ModesShared.EnsurePlayerStats(victimId)
+	local killerName = Modes.ApplyHitScoring(victimLobbyId, lobby, victimId, killerId, creditKiller) or "Unknown"
 	local victimName = Data.arenaStats[victimId].name or "Unknown"
-	local killerName = "Unknown"
-	local victimLobbyId = Data.playerLobbies[victimId]
 
-	Data.arenaStats[victimId].deaths = Data.arenaStats[victimId].deaths + 1
-
-	if creditKiller and killerId and killerId ~= victimId then
-		if not Data.arenaStats[killerId] then
-			Data.arenaStats[killerId] = {
-				name = Utils.GetPlayerName(killerId),
-				kills = 0,
-				deaths = 0,
-			}
-		end
-
-		local killerLobbyId = Data.playerLobbies[killerId]
-		local sharedLobbyId = (victimLobbyId and victimLobbyId == killerLobbyId) and killerLobbyId or nil
-		local lobby = sharedLobbyId and Data.lobbies[sharedLobbyId] or nil
-		local isTeamsMode = lobby and Lobby.IsTeamBasedMode(lobby.gameMode)
-		local killerTeam = Data.playerTeams[killerId]
-		local victimTeam = Data.playerTeams[victimId]
-
-		if isTeamsMode and killerTeam and victimTeam and killerTeam == victimTeam then
-			local opposingTeam = Leaderboard.GetOpposingTeam(killerTeam)
-			if opposingTeam then
-				Leaderboard.EnsureLobbyTeamScores(sharedLobbyId)
-				Data.teamScores[sharedLobbyId][opposingTeam] = (Data.teamScores[sharedLobbyId][opposingTeam] or 0) + 1
-			end
-		else
-			Data.arenaStats[killerId].kills = Data.arenaStats[killerId].kills + 1
-			killerName = Data.arenaStats[killerId].name
-
-			if isTeamsMode and killerTeam then
-				Leaderboard.EnsureLobbyTeamScores(sharedLobbyId)
-				Data.teamScores[sharedLobbyId][killerTeam] = (Data.teamScores[sharedLobbyId][killerTeam] or 0) + 1
-			end
-		end
-	end
-
-	if killerName ~= "Unknown" and victimLobbyId and Data.lobbies[victimLobbyId] then
+	if killerName ~= "Unknown" then
 		Lobby.BroadcastToLobby(victimLobbyId, "matti-airsoft:showKillFeed", killerName, victimName)
 	end
 
@@ -264,7 +234,9 @@ function Leaderboard.RecordHit(victimId, killerId, creditKiller)
 		end
 	end
 
+	Modes.OnPlayerHit(victimLobbyId, lobby, victimId, killerId, creditKiller)
 	Leaderboard.Broadcast()
+	Leaderboard.BroadcastArenaBoard()
 end
 
 function Leaderboard.Broadcast()
@@ -273,10 +245,26 @@ function Leaderboard.Broadcast()
 		return
 	end
 
-	local rows = Leaderboard.BuildRows()
-	Lobby.BroadcastToLobby(lobbyId, "matti-airsoft:updateLeaderboard", rows)
+	local payload = Leaderboard.BuildMatchHud(lobbyId)
+	Lobby.BroadcastToLobby(lobbyId, "matti-airsoft:updateLeaderboard", payload.rows)
+	Lobby.BroadcastToLobby(lobbyId, "matti-airsoft:updateMatchHud", payload)
+end
+
+function Leaderboard.BroadcastArenaBoard()
+	local lobbyId = Data.activeLobbyInArena
+	if not lobbyId or not Data.lobbies[lobbyId] then
+		TriggerClientEvent("matti-airsoft:updateArenaBoard", -1, nil)
+		return
+	end
+
+	local payload = Leaderboard.BuildMatchHud(lobbyId)
+	TriggerClientEvent("matti-airsoft:updateArenaBoard", -1, payload)
 end
 
 function Leaderboard.Get()
 	return Leaderboard.BuildRows()
+end
+
+function Leaderboard.GetRecap(lobbyId)
+	return Data.matchRecap and Data.matchRecap[lobbyId] or nil
 end

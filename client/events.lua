@@ -18,16 +18,12 @@ local function IsTeamBasedMode(mode)
 	return SharedUtils.IsTeamBasedMode(mode)
 end
 
-local function IsDeathmatchEnabled(lobby)
-	if lobby and type(lobby.deathmatchEnabled) == "boolean" then
-		return lobby.deathmatchEnabled
-	end
-
-	return Config.DeathmatchEnabledByDefault ~= false
+local function IsLmsEnabled(lobby)
+	return SharedUtils.IsLmsEnabled(lobby)
 end
 
 RegisterNetEvent("matti-airsoft:openLobbyMenu", function()
-	QBCore.Functions.TriggerCallback("matti-airsoft:getPlayerLobby", function(lobby)
+	Framework.TriggerCallback("matti-airsoft:getPlayerLobby", function(lobby)
 		if lobby then
 			State.currentLobby = lobby
 			TriggerEvent("matti-airsoft:openLobbyManagement")
@@ -49,7 +45,7 @@ AddEventHandler("matti-airsoft:openLobbyBrowser", function()
 		iconColor = "#2ecc71",
 	})
 
-	QBCore.Functions.TriggerCallback("matti-airsoft:getLobbies", function(data)
+	Framework.TriggerCallback("matti-airsoft:getLobbies", function(data)
 		local lobbies = data.lobbies or {}
 		local arenaOccupied = data.arenaOccupied or false
 
@@ -113,7 +109,41 @@ AddEventHandler("matti-airsoft:openLobbyBrowser", function()
 			iconColor = "#95a5a6",
 		})
 
+		Menu.AddOption(browserMenu, {
+			title = Lang:t("menu.my_stats"),
+			description = Lang:t("menu.my_stats_desc"),
+			event = "matti-airsoft:openCareerStats",
+			icon = "fas fa-chart-line",
+			iconColor = "#3498db",
+		})
+
 		Menu.Open("matti_airsoft_lobby_browser", Lang:t("menu.lobby_browser"), browserMenu)
+	end)
+end)
+
+RegisterNetEvent("matti-airsoft:openCareerStats")
+AddEventHandler("matti-airsoft:openCareerStats", function()
+	Framework.TriggerCallback("matti-airsoft:getPlayerStats", function(stats)
+		if not stats then
+			Utils.SendNotification(Lang:t("notifications.no_career_stats"), "info")
+			return
+		end
+
+		local kills = stats.kills or 0
+		local deaths = stats.deaths or 0
+		local kd = deaths > 0 and string.format("%.2f", kills / deaths) or tostring(kills)
+		local matches = stats.matches_played or 0
+
+		lib.alertDialog({
+			header = Lang:t("menu.my_stats"),
+			content = Lang:t("menu.career_stats_body", {
+				kills = kills,
+				deaths = deaths,
+				kd = kd,
+				matches = matches,
+			}),
+			centered = true,
+		})
 	end)
 end)
 
@@ -198,16 +228,16 @@ RegisterNetEvent("matti-airsoft:openLobbyManagement", function()
 			iconColor = "#3498db",
 		})
 
-		local deathmatchEnabled = IsDeathmatchEnabled(State.currentLobby)
+		local lmsEnabled = IsLmsEnabled(State.currentLobby)
 		Menu.AddOption(managementMenu, {
-			title = Lang:t("menu.deathmatch_toggle"),
-			description = Lang:t("menu.current_mode")
-				.. ": "
-				.. (deathmatchEnabled and Lang:t("menu.enabled") or Lang:t("menu.disabled")),
-			event = "matti-airsoft:toggleDeathmatch",
-			args = { enabled = not deathmatchEnabled },
-			icon = "fas fa-skull-crossbones",
-			iconColor = deathmatchEnabled and "#e67e22" or "#95a5a6",
+			title = Lang:t("menu.lms_toggle"),
+			description = Lang:t("menu.lms_toggle_desc")
+				.. " "
+				.. (lmsEnabled and Lang:t("menu.enabled") or Lang:t("menu.disabled")),
+			event = "matti-airsoft:toggleLms",
+			args = { enabled = not lmsEnabled },
+			icon = "fas fa-skull",
+			iconColor = lmsEnabled and "#e74c3c" or "#95a5a6",
 		})
 
 		local currentLoadoutText = State.currentLobby.selectedLoadout and State.currentLobby.selectedLoadout.name
@@ -230,6 +260,16 @@ RegisterNetEvent("matti-airsoft:openLobbyManagement", function()
 				iconColor = "#f39c12",
 			})
 		end
+
+		local scoreLimit = State.currentLobby.scoreLimit or Config.DefaultScoreLimit or 0
+		local scoreLimitText = scoreLimit > 0 and (scoreLimit .. " " .. Lang:t("menu.kills")) or Lang:t("notifications.score_limit_disabled")
+		Menu.AddOption(managementMenu, {
+			title = Lang:t("menu.score_limit"),
+			description = Lang:t("menu.current_score_limit") .. ": " .. scoreLimitText,
+			event = "matti-airsoft:openScoreLimitInput",
+			icon = "fas fa-bullseye",
+			iconColor = "#e74c3c",
+		})
 
 		Menu.AddOption(managementMenu, {
 			title = Lang:t("menu.start_game"),
@@ -325,11 +365,11 @@ RegisterNetEvent("matti-airsoft:setGameMode", function(data)
 	TriggerEvent("matti-airsoft:openLobbyManagement")
 end)
 
-RegisterNetEvent("matti-airsoft:toggleDeathmatch", function(data)
+RegisterNetEvent("matti-airsoft:toggleLms", function(data)
 	local enabled = data and data.enabled == true
-	TriggerServerEvent("matti-airsoft:setDeathmatchEnabled", enabled)
+	TriggerServerEvent("matti-airsoft:setLmsEnabled", enabled)
 	Utils.SendNotification(
-		enabled and Lang:t("notifications.deathmatch_enabled") or Lang:t("notifications.deathmatch_disabled"),
+		enabled and Lang:t("notifications.lms_enabled") or Lang:t("notifications.lms_disabled"),
 		"success"
 	)
 	Wait(500)
@@ -415,9 +455,37 @@ AddEventHandler("matti-airsoft:openMatchTimerInput", function()
 	end
 end)
 
+RegisterNetEvent("matti-airsoft:openScoreLimitInput")
+AddEventHandler("matti-airsoft:openScoreLimitInput", function()
+	local inputValue = Menu.ShowSingleInput({
+		title = Lang:t("menu.select_score_limit"),
+		submitText = Lang:t("menu.set"),
+		label = Lang:t("menu.score_limit_input_label"),
+		placeholder = tostring(Config.DefaultScoreLimit or 15),
+		type = "number",
+		min = 0,
+		max = 100,
+		required = true,
+	})
+
+	if inputValue == nil then
+		return
+	end
+
+	local limit = tonumber(inputValue)
+	if limit == nil or limit < 0 or limit > 100 then
+		Utils.SendNotification(Lang:t("notifications.invalid_score_limit"), "error")
+		return
+	end
+
+	TriggerServerEvent("matti-airsoft:setScoreLimit", limit)
+	Wait(500)
+	TriggerEvent("matti-airsoft:openLobbyManagement")
+end)
+
 RegisterNetEvent("matti-airsoft:startLobbyGame", function()
 	if State.currentLobby and IsTeamBasedMode(State.currentLobby.gameMode) then
-		QBCore.Functions.TriggerCallback("matti-airsoft:getPlayerTeam", function(team)
+		Framework.TriggerCallback("matti-airsoft:getPlayerTeam", function(team)
 			if not team then
 				TriggerEvent("matti-airsoft:selectTeam")
 			else
@@ -431,7 +499,7 @@ end)
 
 RegisterNetEvent("matti-airsoft:selectTeam")
 AddEventHandler("matti-airsoft:selectTeam", function()
-	QBCore.Functions.TriggerCallback("matti-airsoft:getLobbyTeams", function(teamState)
+	Framework.TriggerCallback("matti-airsoft:getLobbyTeams", function(teamState)
 		Menu.Open(
 			"matti_airsoft_team_menu",
 			Lang:t("menu.select_team"),
@@ -450,32 +518,38 @@ RegisterNetEvent("matti-airsoft:confirmTeamSelection", function(data)
 	)
 end)
 
-RegisterNetEvent("matti-airsoft:gameStarting", function(loadout, gameMode, deathmatchEnabled)
+RegisterNetEvent("matti-airsoft:gameStarting", function(loadout, gameMode, shouldRespawn, scoreLimit)
 	if not loadout then
 		Utils.SendNotification(Lang:t("notifications.select_loadout_first"), "error")
 		return
 	end
 
+	State.shouldRespawn = shouldRespawn == true
+	State.shouldEnterSpectator = not State.shouldRespawn
+	State.scoreLimit = tonumber(scoreLimit) or 0
+
 	if State.currentLobby then
-		State.currentLobby.deathmatchEnabled = deathmatchEnabled == true
+		State.currentLobby.gameMode = gameMode
+		State.currentLobby.lmsEnabled = not State.shouldRespawn
+		State.currentLobby.scoreLimit = State.scoreLimit
 	end
 
-	if IsTeamBasedMode(gameMode) then
-		QBCore.Functions.TriggerCallback("matti-airsoft:getPlayerTeam", function(team)
+	CreateThread(function()
+		if IsTeamBasedMode(gameMode) then
+			local team = Framework.AwaitCallback("matti-airsoft:getPlayerTeam")
 			if not team then
 				TriggerEvent("matti-airsoft:selectTeamBeforePlay")
-			else
-				Loadout.Handle(loadout)
+				return
 			end
-		end)
-	else
+		end
+
 		Loadout.Handle(loadout)
-	end
+	end)
 end)
 
 RegisterNetEvent("matti-airsoft:selectTeamBeforePlay")
 AddEventHandler("matti-airsoft:selectTeamBeforePlay", function()
-	QBCore.Functions.TriggerCallback("matti-airsoft:getLobbyTeams", function(teamState)
+	Framework.TriggerCallback("matti-airsoft:getLobbyTeams", function(teamState)
 		Menu.Open(
 			"matti_airsoft_team_select_play",
 			Lang:t("menu.select_team"),
@@ -494,7 +568,10 @@ RegisterNetEvent("matti-airsoft:confirmTeamBeforePlay", function(data)
 	)
 	Wait(500)
 	if State.currentLobby and State.currentLobby.selectedLoadout then
-		Loadout.Handle(State.currentLobby.selectedLoadout)
+		local selectedLoadout = State.currentLobby.selectedLoadout
+		CreateThread(function()
+			Loadout.Handle(selectedLoadout)
+		end)
 	end
 end)
 
@@ -506,6 +583,16 @@ RegisterNetEvent("matti-airsoft:client:removeWeaponFromPed", function(weaponName
 end)
 
 local function HandleArenaExitCleanup()
+	Player.Revive()
+
+	if State.isSpectating then
+		State.isSpectating = false
+		local playerPed = PlayerPedId()
+		ResetEntityAlpha(playerPed)
+		SetEntityInvincible(playerPed, false)
+		SetPedCanRagdoll(playerPed, true)
+	end
+
 	if State.isInArena then
 		TriggerServerEvent("matti-airsoft:playerLeftArena")
 		State.isInArena = false
@@ -514,14 +601,16 @@ local function HandleArenaExitCleanup()
 	TriggerServerEvent("matti-airsoft:exitMatch")
 
 	State.leaderboardVisible = false
+	State.shouldRespawn = nil
+	State.shouldEnterSpectator = nil
+	State.spawnProtectedUntil = nil
 
-	-- Clear all in-match HUD NUI first (timer, killfeed, live leaderboard).
 	SendNUIMessage({
 		action = "clearArenaHud",
 	})
 
 	if Config.LeaderboardEnabled then
-		Leaderboard.ShowFinalOnExit()
+		Leaderboard.ShowFinalOnExit(State.cachedMatchRecap)
 	end
 
 	State.isHit = false
@@ -545,6 +634,29 @@ RegisterNetEvent("matti-airsoft:forceExitArena", function()
 	Inventory.Restore()
 	SetEntityCoords(PlayerPedId(), Config.ReturnLocation)
 	Utils.SendNotification(Lang:t("notifications.force_exit"), "error")
+end)
+
+RegisterNetEvent("matti-airsoft:updateMatchHud", function(payload)
+	if not payload or not State.isInArena or not Config.LeaderboardEnabled then
+		return
+	end
+
+	if payload.rows then
+		Leaderboard.SetCachedRows(payload.rows)
+		if State.leaderboardVisible then
+			SendNUIMessage({
+				action = "updateLeaderboard",
+				leaderboard = payload.rows,
+			})
+		end
+	end
+
+	SendNUIMessage({
+		action = "updateMatchHud",
+		mode = payload.mode,
+		timer = payload.timer,
+		scoreLimit = payload.scoreLimit,
+	})
 end)
 
 RegisterNetEvent("matti-airsoft:updateLeaderboard", function(leaderboard)
@@ -593,18 +705,38 @@ RegisterNetEvent("matti-airsoft:matchTimeExpired", function()
 			action = "timerExpired",
 		})
 	end
-	Wait(5000)
-	TriggerEvent("matti-airsoft:exitArena")
 end)
 
 RegisterNetEvent("matti-airsoft:matchEndedElimination", function()
 	Utils.SendNotification(Lang:t("notifications.match_ended_elimination"), "info")
+end)
+
+RegisterNetEvent("matti-airsoft:matchEnded", function(recap)
+	State.cachedMatchRecap = recap
+
+	if recap and recap.rows then
+		Leaderboard.SetCachedRows(recap.rows)
+	end
+
 	if Config.LeaderboardEnabled then
 		SendNUIMessage({
 			action = "timerExpired",
 		})
 	end
 
-	Wait(2000)
-	TriggerEvent("matti-airsoft:exitArena")
+	local shouldExit = State.isInArena or State.isSpectating
+
+	Player.Revive()
+	Wait(2500)
+	Player.Revive()
+
+	if shouldExit then
+		HandleArenaExitCleanup()
+		Loadout.Remove()
+		Inventory.Restore()
+		SetEntityCoords(PlayerPedId(), Config.ReturnLocation)
+		Player.Revive()
+	elseif recap and Config.ShowFinalScoreboardOnExit then
+		Leaderboard.ShowFinalOnExit(recap)
+	end
 end)

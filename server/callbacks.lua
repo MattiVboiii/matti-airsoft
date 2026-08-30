@@ -1,52 +1,35 @@
-QBCore.Functions.CreateCallback("matti-airsoft:canAffordLoadout", function(source, cb, price)
+lib.callback.register("matti-airsoft:canAffordLoadout", function(source, price)
 	local player = Utils.GetPlayer(source)
 	if not player then
-		cb(false)
-		return
+		return false
 	end
 
 	local normalizedPrice = tonumber(price) or 0
 	if normalizedPrice <= 0 then
-		cb(true)
-		return
+		return true
 	end
 
-	if Config.Framework == "ox" then
-		local money = player.getAccount("money").money
-		if money >= normalizedPrice then
-			player.removeMoney(normalizedPrice, "Airsoft Loadout")
-			cb(true)
-		else
-			cb(false)
-		end
-	else
-		if player.Functions.RemoveMoney("cash", normalizedPrice, "airsoft") then
-			cb(true)
-		else
-			cb(false)
-		end
-	end
+	return Utils.RemoveMoney(source, normalizedPrice, "Airsoft Loadout")
 end)
 
-QBCore.Functions.CreateCallback("matti-airsoft:getPlayerTeam", function(source, cb)
-	cb(Data.playerTeams[source] or nil)
+lib.callback.register("matti-airsoft:getPlayerTeam", function(source)
+	return Data.playerTeams[source] or nil
 end)
 
-QBCore.Functions.CreateCallback("matti-airsoft:getLobbyTeams", function(source, cb)
+lib.callback.register("matti-airsoft:getLobbyTeams", function(source)
 	local lobbyId = Data.playerLobbies[source]
 	if not lobbyId or not Data.lobbies[lobbyId] then
-		cb({
+		return {
 			team1 = {},
 			team2 = {},
 			unassigned = {},
-		})
-		return
+		}
 	end
 
-	cb(Lobby.GetTeamMembers(lobbyId))
+	return Lobby.GetTeamMembers(lobbyId)
 end)
 
-QBCore.Functions.CreateCallback("matti-airsoft:getLobbies", function(_, cb)
+lib.callback.register("matti-airsoft:getLobbies", function()
 	local availableLobbies = {}
 	for lobbyId, lobby in pairs(Data.lobbies) do
 		table.insert(availableLobbies, {
@@ -60,25 +43,25 @@ QBCore.Functions.CreateCallback("matti-airsoft:getLobbies", function(_, cb)
 		})
 	end
 
-	cb({
+	return {
 		lobbies = availableLobbies,
 		arenaOccupied = Data.activeLobbyInArena ~= nil,
-	})
+	}
 end)
 
-QBCore.Functions.CreateCallback("matti-airsoft:getPlayerLobby", function(source, cb)
+lib.callback.register("matti-airsoft:getPlayerLobby", function(source)
 	local lobbyId = Data.playerLobbies[source]
 	if lobbyId and Data.lobbies[lobbyId] then
-		cb(Data.lobbies[lobbyId])
-	else
-		cb(nil)
+		return Data.lobbies[lobbyId]
 	end
+
+	return nil
 end)
 
-QBCore.Functions.CreateCallback("matti-airsoft:getLeaderboard", function(_, cb)
-	cb(Leaderboard.Get())
+lib.callback.register("matti-airsoft:getLeaderboard", function()
+	return Leaderboard.Get()
 end)
 
-QBCore.Functions.CreateCallback("matti-airsoft:getPlayerStats", function(source, cb)
-	cb(Stats.GetPlayerStats(source))
+lib.callback.register("matti-airsoft:getPlayerStats", function(source)
+	return Stats.GetPlayerStats(source)
 end)

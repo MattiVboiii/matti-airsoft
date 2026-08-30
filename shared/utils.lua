@@ -108,6 +108,39 @@ function SharedUtils.IsTeamBasedMode(mode)
     return modeConfig and modeConfig.teamBased == true or false
 end
 
+function SharedUtils.IsLmsEnabled(lobby)
+    return type(lobby) == 'table' and lobby.lmsEnabled == true
+end
+
+function SharedUtils.IsGunGameMode(mode)
+    return SharedUtils.NormalizeModeId(mode) == 'gungame'
+end
+
+function SharedUtils.GetGunGameStages()
+    local stages = {}
+    local seen = {}
+
+    for _, loadout in ipairs(Config.Loadouts or {}) do
+        for _, weapon in ipairs(loadout.weapons or {}) do
+            local normalizedName = SharedUtils.NormalizeItemName(weapon.name)
+            if normalizedName and not seen[normalizedName] then
+                seen[normalizedName] = true
+                local ammoEntry = nil
+                for _, ammo in ipairs(loadout.ammo or {}) do
+                    ammoEntry = ammo
+                    break
+                end
+                stages[#stages + 1] = {
+                    weapon = weapon.name,
+                    ammo = ammoEntry,
+                }
+            end
+        end
+    end
+
+    return stages
+end
+
 function SharedUtils.GetDefaultGameMode()
     local configuredDefault = SharedUtils.NormalizeModeId(Config.DefaultGameMode)
     if configuredDefault and SharedUtils.GetConfiguredGameModes()[configuredDefault] then

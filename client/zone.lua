@@ -37,6 +37,10 @@ function Zone.HandleEntry(isPointInside)
 
         Combat.CheckHitStatus()
     else
+        if GetGameTimer() < (State.suppressZoneExitUntil or 0) then
+            return
+        end
+
         State.isInArena = false
         TriggerEvent('matti-airsoft:arenaStateChanged', false)
 

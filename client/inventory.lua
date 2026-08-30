@@ -1,7 +1,5 @@
 Inventory = {}
 
-local removalNotifiedItems = {}
-local whitelistedArenaItems = {}
 local inventoryNotifyCooldownUntil = 0
 
 local function NotifyArenaInventoryBlocked()
@@ -75,18 +73,8 @@ local function RegisterArenaInventoryOverride()
     end)
 end
 
-local function IsWhitelistedArenaItem(itemName)
-    local normalizedItemName = SharedUtils.NormalizeItemName(itemName)
-    if not normalizedItemName then
-        return false
-    end
-
-    return whitelistedArenaItems[normalizedItemName] == true
-end
-
 function Inventory.BuildAllowedArenaItems()
     allowedArenaItems = {}
-    whitelistedArenaItems = {}
 
     for _, loadout in ipairs(Config.Loadouts or {}) do
         for _, weapon in ipairs(loadout.weapons or {}) do
@@ -111,65 +99,17 @@ function Inventory.BuildAllowedArenaItems()
     for _, itemName in ipairs(Config.ArenaItemWhitelist or {}) do
         local normalizedItemName = SharedUtils.NormalizeItemName(itemName)
         if normalizedItemName then
-            whitelistedArenaItems[normalizedItemName] = true
             allowedArenaItems[normalizedItemName] = true
         end
     end
 end
 
 function Inventory.RemoveDisallowedArenaItems()
-    if not Config.EnforceArenaLoadoutItemsOnly then
+    if not Config.EnforceArenaLoadoutItemsOnly or not State.isInArena then
         return
     end
 
-    if not State.isInArena or not State.currentLoadout then
-        removalNotifiedItems = {}
-        return
-    end
-
-    if Config.InventorySystem == 'qb-inventory' then
-        local items = QBCore.Functions.GetPlayerData().items or {}
-
-        for _, item in pairs(items) do
-            local normalizedItemName = SharedUtils.NormalizeItemName(item.name)
-            if normalizedItemName and item.amount and item.amount > 0 and not allowedArenaItems[normalizedItemName] then
-                TriggerServerEvent('matti-airsoft:removeItem', item.name, item.amount)
-                if not removalNotifiedItems[normalizedItemName] then
-                    removalNotifiedItems[normalizedItemName] = true
-                    Utils.SendNotification(Lang:t('notifications.item_removed_in_arena', {
-                        item = SharedUtils.TrimDisplayText(item.name, 50),
-                        amount = item.amount,
-                    }), 'error')
-                end
-
-                if Config.Debug then
-                    print(' Removed non-airsoft item while in arena: ' .. item.name .. ' x' .. item.amount)
-                end
-            end
-        end
-    elseif Config.InventorySystem == 'ox_inventory' then
-        local items = exports.ox_inventory:GetPlayerItems() or {}
-
-        for _, item in pairs(items) do
-            local normalizedItemName = SharedUtils.NormalizeItemName(item.name)
-            if normalizedItemName and item.count and item.count > 0 and not allowedArenaItems[normalizedItemName] then
-                TriggerServerEvent('matti-airsoft:removeItem', item.name, item.count)
-                if not removalNotifiedItems[normalizedItemName] then
-                    removalNotifiedItems[normalizedItemName] = true
-                    Utils.SendNotification(Lang:t('notifications.item_removed_in_arena', {
-                        item = SharedUtils.TrimDisplayText(item.name, 50),
-                        amount = item.count,
-                    }), 'error')
-                end
-
-                if Config.Debug then
-                    print(' Removed non-airsoft item while in arena: ' .. item.name .. ' x' .. item.count)
-                end
-            end
-        end
-    else
-        print('No supported inventory found: ' .. Config.InventorySystem)
-    end
+    TriggerServerEvent('matti-airsoft:enforceArenaInventory')
 end
 
 function Inventory.StartArenaItemLock()
@@ -184,9 +124,7 @@ function Inventory.StartArenaItemLock()
     CreateThread(function()
         while true do
             local interval = Config.ArenaItemLockIntervalMs or 1500
-            if not State.isInArena then
-                interval = 3000
-            elseif interval < 250 then
+            if interval < 250 then
                 interval = 250
             end
 
@@ -200,33 +138,11 @@ function Inventory.StartArenaItemLock()
 end
 
 function Inventory.SaveAndClear()
-    if Config.InventorySystem == 'qb-inventory' then
-        local playerData = QBCore.Functions.GetPlayerData()
-        local playerItems = playerData.items or {}
-
-        for _, item in pairs(playerItems) do
-            local amount = item.amount or item.count or 0
-            if item.name and amount > 0 and not IsWhitelistedArenaItem(item.name) then
-                TriggerServerEvent('matti-airsoft:removeItem', item.name, amount, item.slot, item.info)
-            end
-        end
-    elseif Config.InventorySystem == 'ox_inventory' then
-        local items = exports.ox_inventory:GetPlayerItems() or {}
-
-        for _, item in pairs(items) do
-            local amount = item.count or item.amount or 0
-            if item.name and amount > 0 and not IsWhitelistedArenaItem(item.name) then
-                TriggerServerEvent('matti-airsoft:removeItem', item.name, amount, item.slot, item.metadata)
-            end
-        end
-    else
-        print('No supported inventory found: ' .. Config.InventorySystem)
-    end
+    return Framework.AwaitCallback('matti-airsoft:stashPlayerInventory') == true
 end
 
 function Inventory.Restore()
     TriggerServerEvent('matti-airsoft:restoreItems')
-    removalNotifiedItems = {}
 end
 
 RegisterArenaInventoryOverride()

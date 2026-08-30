@@ -31,11 +31,16 @@ function Leaderboard.Show()
 
     State.leaderboardVisible = true
 
-    QBCore.Functions.TriggerCallback('matti-airsoft:getLeaderboard', function(leaderboard)
+    Framework.TriggerCallback('matti-airsoft:getLeaderboard', function(leaderboard)
         Leaderboard.SetCachedRows(leaderboard)
         Leaderboard.ApplyUiTheme()
         SendLeaderboardVisibility(true, leaderboard)
         SetNuiFocus(false, false)
+
+        SendNUIMessage({
+            action = 'updateMatchHud',
+            scoreLimit = State.scoreLimit or 0,
+        })
     end)
 end
 
@@ -53,15 +58,15 @@ function Leaderboard.HideFinalOnExit()
     SetNuiFocus(false, false)
 end
 
-function Leaderboard.ShowFinalOnExit()
+function Leaderboard.ShowFinalOnExit(recap)
     if not Config.LeaderboardEnabled or not Config.ShowFinalScoreboardOnExit then
         Leaderboard.Hide()
         Leaderboard.HideFinalOnExit()
         return
     end
 
-    local cachedRows = Leaderboard.GetCachedRows()
-    if not cachedRows or #cachedRows == 0 then
+    local rows = (recap and recap.rows) or Leaderboard.GetCachedRows()
+    if not rows or #rows == 0 then
         Leaderboard.Hide()
         Leaderboard.HideFinalOnExit()
         return
@@ -73,14 +78,15 @@ function Leaderboard.ShowFinalOnExit()
     SendNUIMessage({
         action = 'showFinalScoreboard',
         show = true,
-        leaderboard = cachedRows,
+        leaderboard = rows,
+        recap = recap or State.cachedMatchRecap,
         accentColor = Config.LeaderboardAccentColor
     })
     SetNuiFocus(true, true)
 end
 
 function Leaderboard.Toggle()
-    if not Config.LeaderboardEnabled or not State.isInArena then
+    if not Config.LeaderboardEnabled or not State.isInArena or State.isSpectating then
         return
     end
 

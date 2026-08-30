@@ -2,6 +2,32 @@ Player = {}
 Peds = {}
 Blip = {}
 
+function Player.Revive()
+    local playerPed = PlayerPedId()
+    if not playerPed or playerPed == 0 then
+        return
+    end
+
+    local coords = GetEntityCoords(playerPed)
+    local heading = GetEntityHeading(playerPed)
+
+    NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
+    SetEntityInvincible(playerPed, false)
+    ClearPedBloodDamage(playerPed)
+    SetEntityHealth(playerPed, GetEntityMaxHealth(playerPed))
+    ClearPedTasksImmediately(playerPed)
+    SetPedCanRagdoll(playerPed, true)
+    State.isHit = false
+
+    if Config.Framework == 'ox' then
+        TriggerEvent('ox:playerRevived')
+    elseif Config.Framework == 'qbx' then
+        TriggerEvent('qbx_medical:client:playerRevived')
+    else
+        TriggerEvent('hospital:client:Revive')
+    end
+end
+
 function Player.TeleportToRandomPosition()
     if not Config.SpawnLocations or #Config.SpawnLocations == 0 then
         return

@@ -24,12 +24,25 @@ function Interaction.IsPlayerInMatch(serverId)
 		return false
 	end
 
-	return Player(serverId).state.airsoftInMatch == true
+	local playerState = Player(serverId).state
+	return playerState.airsoftInMatch == true
+end
+
+function Interaction.IsPlayerSpectating(serverId)
+	if not serverId then
+		return false
+	end
+
+	return Player(serverId).state.airsoftSpectating == true
 end
 
 function Interaction.ShouldBlockCombatBetween(attackerServerId, victimServerId)
 	if not attackerServerId or not victimServerId then
 		return false
+	end
+
+	if Interaction.IsPlayerSpectating(attackerServerId) or Interaction.IsPlayerSpectating(victimServerId) then
+		return true
 	end
 
 	local attackerInMatch = Interaction.IsPlayerInMatch(attackerServerId)
