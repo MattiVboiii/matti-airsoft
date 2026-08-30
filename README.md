@@ -1,138 +1,188 @@
-# 🔫 matti-airsoft - Ultimate Airsoft Arena for QBCore / QBox / OXCore
+# matti-airsoft — Airsoft Arena for QBCore / Qbox / ox_core
 
-Welcome to the most thrilling airsoft experience for your FiveM server! This script brings competitive, safe airsoft battles to your players with complete customization options.
+Competitive airsoft matches for FiveM with lobbies, multiple game modes, loadouts, and arena inventory handling.
 
-## 🎯 Key Features
+## Features
 
-### Core Gameplay
+### Gameplay
 
-- **Realistic Loadouts**: Choose from pre-configured weapon sets with configurable pricing
-- **Dynamic Arenas**: Random spawn locations keep matches fresh and unpredictable
-- **Safety First**: Automatic ejection when players are "downed"
-- **Lobby System**: Players join a shared lobby; the lobby owner can adjust settings before and during matches
-- **Game Modes**: Free-for-all (FFA) and team-based deathmatch — lobby owner can toggle the mode from the UI
-- **Leaderboard**: Real-time kill tracking with a final scoreboard snapshot on exit (toggle with `Config.LeaderboardKey`)
-- **Match Timer**: Configurable time-limited rounds that automatically end the match when the clock runs out
-- **Ammo Replenishment**: Optionally replenish missing ammo on each respawn (`Config.RefillLoadoutAmmoOnRespawn`)
+- **Loadouts** — configurable weapon sets with prices; host picks one for the match
+- **Game modes** — FFA, Teams, and Gun Game (`Config.GameModes`)
+- **Last Man Standing** — host toggle (one life → spectator); when off, hits teleport-respawn
+- **Score limit** — kills-to-win (host can change; `0` = timer only)
+- **Match timer** — optional time limit; host can override the default in the lobby
+- **Spawn protection** — short invulnerability after spawn/respawn
+- **Spectator** — eliminated players stay in the arena (free-fly, no combat); press **E** to leave early
+- **Leaderboard / match recap** — live board, final scoreboard with MVP and win reason
+- **Career stats** — “My Stats” in the lobby browser (DB-backed)
+- **Ammo refill** — optional top-up to loadout amounts on respawn
 
-### Immersive Elements
+### Arena
 
-- **Interactive Peds**: Entry/Exit NPCs with full customization
-- **Visual Feedback**: Clear arena status notifications and killfeed styling
-- **Arena Inventory Lock**: Prevent players from bringing or using non-loadout items inside the arena
-- **Debug Tools**: Developer-friendly features for testing spawns and zones
+- **Random spawns** inside the zone
+- **Entry / exit peds** with target interaction
+- **Inventory stash** — non-loadout items are stored server-side for the match and returned on exit (not deleted)
+- **Match isolation** — other players in the arena who aren’t in your match stay visible but non-interactive (`airsoftInMatch` state bags)
+- **Live arena board** — top scores near the enter ped for bystanders
 
-### Framework Support
+### Framework
 
-- **Target Systems**: Works with both qb-target and ox_target
-- **Inventory Compatible**: Supports qb-inventory and ox_inventory
-- **Menu System**: Works with qb-menu and ox_lib
-- **Notification Options**: Choose between qb-core or ox_lib styles
+- **Frameworks**: `qb`, `qbx`, `ox` (`Config.Framework`)
+- **Target**: qb-target / ox_target
+- **Inventory**: qb-inventory / ox_inventory
+- **Menu / notify**: qb-menu or ox_lib / qb-core or ox_lib
 
-## 🎮 Screenshot Gallery
+### Exports
 
-### Loadout Selection
+```lua
+exports['matti-airsoft']:IsPlayerInArena(playerId)
+exports['matti-airsoft']:GetActiveLobby()
+exports['matti-airsoft']:GetActiveLobbyId()
+```
+
+## Screenshots
+
+### Loadout selection
 
 ![image](https://github.com/user-attachments/assets/6c69564e-46a1-4adf-9f9b-185a3c610374)
 ![image](https://github.com/user-attachments/assets/52f2d3a1-1ece-49a8-9b3b-a2d61a442cdf)
 
-### Arena Access
+### Arena access
 
 ![image](https://github.com/user-attachments/assets/8f1cd476-3149-4f3a-b099-395d62fb36d3)
 ![image](https://github.com/user-attachments/assets/dc8d958d-36e1-4a56-8bcc-d58719db2197)
 
-### Match Notifications
+### Match notifications
 
 ![image](https://github.com/user-attachments/assets/07c4bf14-e37c-406c-bbc2-9768fe809520)
 ![image](https://github.com/user-attachments/assets/c47c5ed3-094d-4a82-af9e-9bd5c6e1ca57)
 ![image](https://github.com/user-attachments/assets/1734da67-f623-426f-b106-9cd3a5d32e28)
 
-### Developer Tools
+### Developer tools
 
 ![image](https://github.com/user-attachments/assets/f503072d-90c2-4bd9-ab14-8920d22c6b76)
 ![image](https://github.com/user-attachments/assets/e53f8654-b817-496c-bfb9-f66ea64a2505)
 
-_🎥 Video preview coming soon!_
+## Recommended map
 
-## 🗺️ Recommended Maps
+[iakkoise’s Softair Map](https://www.gta5-mods.com/maps/ymap-softair-sp-fivem-alt-v) — lightweight arena using native GTA props.
 
-For the best experience, pair this script with [iakkoise's Softair Map](https://www.gta5-mods.com/maps/ymap-softair-sp-fivem-alt-v) - a lightweight, optimized arena using native GTA props.
+## Weapons
 
-## 🔫 Weapon Recommendations
+Use non-lethal airsoft guns when possible (stun instead of kill). Recommended pack: [Localspetsnaz’s Airsoft Guns](https://forum.cfx.re/t/free-standalone-add-on-standalone-add-on-airsoft-guns/5026328).
 
-(Not using this? Prepare to encounter revive bugs for now)
-
-Enhance realism with [Localspetsnaz's Airsoft Guns Pack](https://forum.cfx.re/t/free-standalone-add-on-standalone-add-on-airsoft-guns/5026328):
-
-- Non-lethal BB pellets that stun instead of kill
-- Authentic airsoft weapon models
-- Complete setup guide below:
+**Loadout item names must exist in your inventory.** Default config uses `weapon_airsoftm4`, `weapon_airsoftr870`, `weapon_airsoftglock20`, and `ammo-airsoft` — register those in ox_inventory / qb items or change `Config.Loadouts` to items you already have.
 
 <details>
-<summary>📖 Installation Guide</summary>
+<summary>Installation — airsoft guns</summary>
 
-Add guns to your server resources and start them in `server.cfg`
+Add the weapon resources and start them in `server.cfg`.
 
-## QBCore Setup
+### QBCore
 
-1. In `qb-core/shared/items.lua`:
-   ```lua
-   weapon_airsoftglock20 = {
-     name = 'weapon_airsoftglock20',
-     label = 'Airsoft Glock 20',
-     weight = 1000,
-     type = 'weapon',
-     ammotype = 'AMMO_PISTOL',
-     image = 'weapon_pistol.png',
-     unique = true,
-     useable = false,
-     description = 'Airsoft Glock 20'
-   },
-   ```
-2. In `qb-core/shared/weapons.lua`:
-   ```lua
-   [`weapon_airsoftglock20`] = {
-     name = 'weapon_airsoftglock20',
-     label = 'Airsoft Glock 20',
-     weapontype = 'Pistol',
-     ammotype = 'AMMO_PISTOL',
-     damagereason = 'Hit by a BB'
-   },
-   ```
-3. In `qb-weapons/config.lua` (Durability section):
-   ```lua
-   weapon_airsoftglock20 = 0.05,
-   ```
-4. In `qb-weapons/client/weapdraw.lua`:
+1. `qb-core/shared/items.lua`:
 
-   ```lua
-   'WEAPON_AIRSOFTGLOCK20',
-   ```
+```lua
+weapon_airsoftglock20 = {
+  name = 'weapon_airsoftglock20',
+  label = 'Airsoft Glock 20',
+  weight = 1000,
+  type = 'weapon',
+  ammotype = 'AMMO_PISTOL',
+  image = 'weapon_pistol.png',
+  unique = true,
+  useable = false,
+  description = 'Airsoft Glock 20'
+},
+```
 
-## Ox_Inventory Setup
+2. `qb-core/shared/weapons.lua`:
 
-1. In `ox_inventory/data/weapons.lua` (Weapons section)
-   ```lua
-   ['WEAPON_AIRSOFTGLOCK20'] = {
-			label = 'Airsoft Glock 20',
-			weight = 0,
-			durability = 0.1,
-			ammoname = 'ammo-airsoft',
-   },
-   ```
+```lua
+[`weapon_airsoftglock20`] = {
+  name = 'weapon_airsoftglock20',
+  label = 'Airsoft Glock 20',
+  weapontype = 'Pistol',
+  ammotype = 'AMMO_PISTOL',
+  damagereason = 'Hit by a BB'
+},
+```
 
-2. OPTIONAL - In `ox_inventory/data/weapons.lua` (Ammo section)
-   ```lua
-   ['ammo-airsoft'] = {
-			label = 'Airsoft bullet',
-			weight = 1,
-	},
-   ```
-      </details>
+3. `qb-weapons/config.lua` (durability) and `qb-weapons/client/weapdraw.lua` as needed for each airsoft weapon.
 
-## 🚨 Pro Tip for Police Systems
+### ox_inventory
 
-Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
+In `ox_inventory/data/weapons.lua` **Weapons**:
+
+```lua
+['WEAPON_AIRSOFTGLOCK20'] = {
+  label = 'Airsoft Glock 20',
+  weight = 1000,
+  durability = 0.05,
+  ammoname = 'ammo-airsoft',
+},
+['WEAPON_AIRSOFTM4'] = {
+  label = 'Airsoft M4',
+  weight = 2800,
+  durability = 0.05,
+  ammoname = 'ammo-airsoft',
+},
+['WEAPON_AIRSOFTR870'] = {
+  label = 'Airsoft Remington 870',
+  weight = 3200,
+  durability = 0.05,
+  ammoname = 'ammo-airsoft',
+},
+```
+
+In **Ammo**:
+
+```lua
+['ammo-airsoft'] = {
+  label = 'Airsoft BB',
+  weight = 1,
+},
+```
+
+Restart `ox_inventory` after editing.
+
+</details>
+
+## Dependencies
+
+- [ox_lib](https://github.com/overextended/ox_lib)
+- [oxmysql](https://github.com/overextended/oxmysql) (career stats)
+
+Plus your chosen framework / target / inventory resources.
+
+## Config notes
+
+| Option                                                        | Notes                                                    |
+| ------------------------------------------------------------- | -------------------------------------------------------- |
+| `Config.Framework`                                            | `'qb'`, `'qbx'`, or `'ox'`                               |
+| `Config.TargetSystem`                                         | `'qb-target'` or `'ox_target'`                           |
+| `Config.MenuSystem`                                           | `'qb-menu'` or `'ox_lib'`                                |
+| `Config.NotifySystem`                                         | `'qb-core'` or `'ox_lib'`                                |
+| `Config.InventorySystem`                                      | `'qb-inventory'` or `'ox_inventory'`                     |
+| `Config.ZoneType`                                             | `'circle'` or `'poly'`                                   |
+| `Config.GameModes` / `Config.DefaultGameMode`                 | FFA, teams, gungame                                      |
+| `Config.DefaultScoreLimit`                                    | Default kills-to-win; host can change (`0` = timer only) |
+| `Config.DefaultMatchDurationMinutes`                          | Default timer; host can change                           |
+| `Config.MatchTimerEnabled` / `Config.MaxMatchDurationMinutes` | Timer on/off and max host setting                        |
+| `Config.SpawnProtectionSeconds`                               | Invulnerability after spawn (`0` = off)                  |
+| `Config.EnforceArenaLoadoutItemsOnly`                         | Stash non-loadout items in-arena (returned on exit)      |
+| `Config.ArenaItemLockIntervalMs`                              | How often to re-check arena inventory                    |
+| `Config.ArenaItemWhitelist`                                   | Items kept in the bag during a match                     |
+| `Config.LeaderboardEnabled` / `Config.LeaderboardAccentColor` | Live board + UI accent                                   |
+| `Config.ShowFinalScoreboardOnExit`                            | Final recap when leaving                                 |
+| `Config.RefillLoadoutAmmoOnRespawn`                           | Top up ammo to loadout amounts                           |
+| `Config.Loadouts`                                             | Weapons + ammo names must match your inventory items     |
+
+Shared helpers: `shared/utils.lua`, `shared/locale.lua`.
+
+## Police / dispatch
+
+Example ps-dispatch no-alert zone:
 
 ```lua
 [3] = {
@@ -146,46 +196,22 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 },
 ```
 
-## ⚙️ Dependencies
+## Disclaimer(s)
 
-- [ox_lib](https://github.com/overextended/ox_lib) - For version checking & creating zone
+- If you don't follow this README, some things might not work as intended. I will not provide any support for custom modifications — you will have to figure those out yourself.
 
-## ⚙️ Config Notes
+- Questions about the default setup are fine. Bugs for the stock config: please report them [here](https://github.com/MattiVboiii/matti-airsoft/issues).
 
-- `Config.Framework` — set to `'qb'` or `'qbx'` to match your server framework.
-- `Config.TargetSystem` — `'qb-target'` or `'ox_target'`.
-- `Config.MenuSystem` — `'qb-menu'` or `'ox_lib'`.
-- `Config.NotifySystem` — `'qb-core'` or `'ox_lib'`.
-- `Config.InventorySystem` — `'qb-inventory'` or `'ox_inventory'`.
-- `Config.ZoneType` — `'circle'` (radius-based) or `'poly'` (polygon points).
-- `Config.GameModes` / `Config.DefaultGameMode` — define available game modes (FFA, teams, etc.) and the default when a lobby is created.
-- `Config.DeathmatchEnabledByDefault` — when `true`, hit players respawn in the arena automatically (lobby owner can override).
-- `Config.EnforceArenaLoadoutItemsOnly` — when `true`, players can only keep loadout items while inside the arena. Recommended to prevent item smuggling.
-- `Config.ArenaItemLockIntervalMs` — interval (ms) between arena inventory enforcement checks. Don't set too low.
-- `Config.ArenaItemWhitelist` — items in this list are never removed when entering or playing in the arena.
-- `Config.LeaderboardEnabled` / `Config.LeaderboardKey` — toggle the kill leaderboard and set the keybind (default: F5).
-- `Config.LeaderboardAccentColor` — hex colour for leaderboard and killfeed accent styling.
-- `Config.ShowFinalScoreboardOnExit` — show a final scoreboard snapshot when a player leaves the arena.
-- `Config.MatchTimerEnabled` / `Config.MaxMatchDurationMinutes` — enable time-limited rounds and set the maximum duration.
-- `Config.RefillLoadoutAmmoOnRespawn` — replenishes only missing ammo up to the selected loadout amounts on each respawn.
-- `Config.KillerFallbackDistance` — fallback distance used to resolve the killer if direct attribution fails.
-- `Config.MaxItemEventAmount` — server-side hard cap for client-triggered item amount events.
-- Internal shared helpers live in `shared/utils.lua` and are loaded via `fxmanifest.lua`.
+- Will I add support for ESX? No. I have no interest in supporting ESX and will not add compatibility for it. I only support QBCore, Qbox, and ox_core.
 
-## ⚠️ Disclaimer(s)
+- Although ox_core is listed as supported, I have not heavily tested it myself. If you hit problems on ox_core, reach out and we can work through them.
 
-- If you don't follow this README, some things might not work as intended. I will not provide any support for custom modifications, you will have to figure it out yourself.
+- I currently use Qbox for testing and development, and I'm often too lazy to re-test every change on other frameworks. Sorry in advance if something breaks elsewhere — I'll try to fix reported issues.
 
-- If you have any questions about the default setup, feel free to ask. If you encounter any bugs, please report them [here](https://github.com/MattiVboiii/matti-airsoft/issues).
+- Tests are mostly done locally on 2 clients. If you find bugs, glitches, or cheat issues with more players, let me know ASAP.
 
-- Will I add support for ESX? No. I have no interest in supporting ESX and will not add compatibility for it. I will only support QBCore, QBox & OXCore (still WIP).
+- I made this script for fun and to learn, not as a perfect product. Contributions and PRs are always welcome.
 
-- Although I added that it supports OXCore, I have absolutely no idea if that's true since I have never tried it, but I think it works 75%... So if you encounter any problems on OXCore, please reach out and we will figure out a solution together.
+- The V2 of this script is considered feature-complete for major overhauls. Future updates will focus on minor features, bug fixes, and performance improvements.
 
-- I currently use QBox for testing and development, I'm mostly too lazy to test on other frameworks. So I'm sorry in advance if there are any issues with other frameworks, but I will try my best to fix them if they come up.
-
-- Tests are done locally on 2 clients, meaning gameplay is only tested for 2 people. If you encounter any bugs/glitches/cheats with more people, let me know ASAP!
-
-- Keep in mind that I made this script for fun and to learn, not to create a perfect product. If you want to contribute or help out, feel free to do so, PR's are always welcome!
-
-- The V2 of this script is considered feature-complete in terms of major overhauls. Future updates will focus on minor features, bug fixes, and performance improvements.
+See [CHANGELOG.md](CHANGELOG.md) for release history.
