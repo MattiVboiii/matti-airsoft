@@ -8,6 +8,9 @@ AddEventHandler('playerDropped', function()
     if Data.savedInventories then
         Data.savedInventories[src] = nil
     end
+    if Data.eventRateLimits then
+        Data.eventRateLimits[src] = nil
+    end
     if Data.pendingArenaStatusChecks then
         Data.pendingArenaStatusChecks[src] = nil
         for targetId, adminId in pairs(Data.pendingArenaStatusChecks) do
@@ -18,6 +21,7 @@ AddEventHandler('playerDropped', function()
     end
 
     Leaderboard.RemovePlayer(src, { keepCachedIfActive = false })
+    MatchState.ClearPlayer(src)
 
     local lobbyId = Data.playerLobbies[src]
     if lobbyId and Data.lobbies[lobbyId] then
@@ -49,14 +53,50 @@ local function TickActiveLobbyTimer(activeLobbyId)
         print(' Match time expired in lobby: ' .. activeLobbyId)
     end
 
-    Data.activeLobbyInArena = nil
+    Leaderboard.FinalizeMatch(activeLobbyId)
 end
 
--- Match Timer Thread
+local function ReconcileArenaPresence()
+    for playerId, isPresent in pairs(Data.arenaPresence) do
+        if isPresent and not Utils.IsPlayerInArena(playerId) then
+            Data.arenaPresence[playerId] = nil
+            if Config.Debug then
+                print('[matti-airsoft] Reconciled arena presence for player ' .. playerId)
+            end
+        end
+    end
+end
+
+exports('IsPlayerInArena', function(playerId)
+    playerId = tonumber(playerId)
+    if not playerId then
+        return false
+    end
+
+    return Data.arenaPresence[playerId] == true and Utils.IsPlayerInArena(playerId)
+end)
+
+exports('GetActiveLobby', function()
+    local lobbyId = Data.activeLobbyInArena
+    if not lobbyId then
+        return nil
+    end
+
+    return Data.lobbies[lobbyId]
+end)
+
+exports('GetActiveLobbyId', function()
+    return Data.activeLobbyInArena
+end)
+
+CreateThread(function()
+    Stats.Initialize()
+end)
+
 if Config.MatchTimerEnabled then
-    Citizen.CreateThread(function()
+    CreateThread(function()
         while true do
-            Wait(1000) -- Update every second
+            Wait(1000)
 
             local activeLobbyId = Data.activeLobbyInArena
             if activeLobbyId and Data.lobbies[activeLobbyId] then
@@ -65,3 +105,15 @@ if Config.MatchTimerEnabled then
         end
     end)
 end
+
+CreateThread(function()
+    local interval = Utils.GetArenaReconcileIntervalMs()
+    if interval < 1000 then
+        interval = 1000
+    end
+
+    while true do
+        Wait(interval)
+        ReconcileArenaPresence()
+    end
+end)

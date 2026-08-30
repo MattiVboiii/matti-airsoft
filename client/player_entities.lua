@@ -13,7 +13,12 @@ end
 
 function Peds.Spawn(modelHash, coords, event, icon, label)
     RequestModel(modelHash)
+    local loadDeadline = GetGameTimer() + 10000
     while not HasModelLoaded(modelHash) do
+        if GetGameTimer() > loadDeadline then
+            print('[matti-airsoft] Failed to load ped model within timeout')
+            return nil
+        end
         Wait(100)
     end
 

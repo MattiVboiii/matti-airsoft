@@ -3,7 +3,7 @@ game('gta5')
 
 author('MattiVboiii')
 description('Simple & basic airsoft script')
-version('2.0.2')
+version('2.0.3')
 
 lua54('yes')
 
@@ -21,6 +21,7 @@ client_scripts({
 	'client/inventory.lua',
 	'client/player_entities.lua',
 	'client/loadout.lua',
+	'client/interaction.lua',
 	'client/combat.lua',
 	'client/leaderboard.lua',
 	'client/zone.lua',
@@ -30,7 +31,10 @@ client_scripts({
 })
 
 server_scripts({
+	'@oxmysql/lib/MySQL.lua',
 	'server/shared.lua',
+	'server/match.lua',
+	'server/stats.lua',
 	'server/lobby.lua',
 	'server/leaderboard.lua',
 	'server/events.lua',
@@ -48,5 +52,6 @@ shared_scripts({
 })
 
 dependencies {
-  'oxmysql'
+  'oxmysql',
+  'ox_lib',
 }

@@ -1,3 +1,12 @@
+local function ClearArenaForPlayer(playerId)
+    TriggerClientEvent('matti-airsoft:forceExitArena', playerId)
+    Data.arenaStats[playerId] = nil
+    Data.arenaPresence[playerId] = nil
+    Data.arenaStatLobbies[playerId] = nil
+    Data.recentAttackers[playerId] = nil
+    MatchState.ClearPlayer(playerId)
+end
+
 QBCore.Commands.Add(
     'exitarena',
     Lang:t('command.description_exitarena'),
@@ -6,13 +15,19 @@ QBCore.Commands.Add(
     function(source, args)
         if args[1] == 'all' then
             local removedCount = 0
+            local activeLobbyId = Data.activeLobbyInArena
+
             for playerId, _ in pairs(Data.arenaStats) do
-                TriggerClientEvent('matti-airsoft:forceExitArena', playerId)
-                Data.arenaStats[playerId] = nil
-                Data.arenaPresence[playerId] = nil
-                Data.arenaStatLobbies[playerId] = nil
+                ClearArenaForPlayer(playerId)
                 removedCount = removedCount + 1
             end
+
+            if activeLobbyId then
+                Leaderboard.FinalizeMatch(activeLobbyId)
+            else
+                Data.activeLobbyInArena = nil
+            end
+
             Leaderboard.Broadcast()
             TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('command.all_players_removed'), 'success')
             if Config.Debug then

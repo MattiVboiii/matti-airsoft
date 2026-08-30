@@ -1,4 +1,4 @@
-$(document).ready(function () {
+document.addEventListener("DOMContentLoaded", function () {
   let translations = {
     title: "AIRSOFT ARENA",
     subtitle: "Leaderboard",
@@ -14,6 +14,10 @@ $(document).ready(function () {
   };
   const killfeedLifetimeMs = 4000;
   const defaultAccentColor = "#EC213A";
+
+  function $(selector) {
+    return document.querySelector(selector);
+  }
 
   function normalizeHexColor(value) {
     if (typeof value !== "string") {
@@ -56,24 +60,25 @@ $(document).ready(function () {
   applyAccentTheme(defaultAccentColor);
 
   function applyStaticTranslations() {
-    $("#leaderboard-title").text(`🎯 ${translations.title}`);
-    $("#leaderboard-subtitle").text(translations.subtitle);
-    $("#col-player").text(translations.columnPlayer);
-    $("#col-team").text(translations.columnTeam);
-    $("#final-col-player").text(translations.columnPlayer);
-    $("#final-col-team").text(translations.columnTeam);
+    $("#leaderboard-title").textContent = `🎯 ${translations.title}`;
+    $("#leaderboard-subtitle").textContent = translations.subtitle;
+    $("#col-player").textContent = translations.columnPlayer;
+    $("#col-team").textContent = translations.columnTeam;
+    $("#final-col-player").textContent = translations.columnPlayer;
+    $("#final-col-team").textContent = translations.columnTeam;
   }
 
   applyStaticTranslations();
 
   function resetArenaHud() {
-    $("#killfeed").empty();
-    $("#leaderboard").hide();
-    $("#timer-display").hide().removeClass("timer-warning");
-    $("#timer-text").text("10:00");
+    $("#killfeed").innerHTML = "";
+    $("#leaderboard").style.display = "none";
+    const timerDisplay = $("#timer-display");
+    timerDisplay.style.display = "none";
+    timerDisplay.classList.remove("timer-warning");
+    $("#timer-text").textContent = "10:00";
   }
 
-  // Listen for messages from the Lua client
   window.addEventListener("message", function (event) {
     const data = event.data;
 
@@ -89,7 +94,6 @@ $(document).ready(function () {
       applyAccentTheme(data.accentColor);
     }
 
-    // Handle showing/hiding the leaderboard
     if (data.action === "showLeaderboard") {
       if (data.accentColor) {
         applyAccentTheme(data.accentColor);
@@ -97,9 +101,9 @@ $(document).ready(function () {
 
       if (data.show) {
         updateLeaderboard(data.leaderboard);
-        $("#leaderboard").show();
+        $("#leaderboard").style.display = "";
       } else {
-        $("#leaderboard").hide();
+        $("#leaderboard").style.display = "none";
       }
     }
 
@@ -110,13 +114,12 @@ $(document).ready(function () {
 
       if (data.show) {
         updateLeaderboard(data.leaderboard, "#final-leaderboard-body");
-        $("#final-scoreboard-overlay").show();
+        $("#final-scoreboard-overlay").style.display = "";
       } else {
-        $("#final-scoreboard-overlay").hide();
+        $("#final-scoreboard-overlay").style.display = "none";
       }
     }
 
-    // Handle updating the leaderboard data
     if (data.action === "updateLeaderboard") {
       updateLeaderboard(data.leaderboard);
     }
@@ -138,11 +141,12 @@ $(document).ready(function () {
     }
 
     if (data.action === "hideTimer") {
-      $("#timer-display").hide().removeClass("timer-warning");
+      const timerDisplay = $("#timer-display");
+      timerDisplay.style.display = "none";
+      timerDisplay.classList.remove("timer-warning");
     }
   });
 
-  // Timer functions
   function formatTime(seconds) {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -153,17 +157,16 @@ $(document).ready(function () {
     const timerDisplay = $("#timer-display");
     const timerText = $("#timer-text");
 
-    if (timerDisplay.css("display") === "none") {
-      timerDisplay.show();
+    if (timerDisplay.style.display === "none") {
+      timerDisplay.style.display = "";
     }
 
-    timerText.text(formatTime(secondsRemaining));
+    timerText.textContent = formatTime(secondsRemaining);
 
-    // Add warning animation if 60 seconds or less
     if (secondsRemaining <= 60) {
-      timerDisplay.addClass("timer-warning");
+      timerDisplay.classList.add("timer-warning");
     } else {
-      timerDisplay.removeClass("timer-warning");
+      timerDisplay.classList.remove("timer-warning");
     }
   }
 
@@ -171,12 +174,12 @@ $(document).ready(function () {
     const timerDisplay = $("#timer-display");
     const timerText = $("#timer-text");
 
-    timerText.text("00:00");
-    timerDisplay.addClass("timer-warning");
+    timerText.textContent = "00:00";
+    timerDisplay.classList.add("timer-warning");
 
     setTimeout(() => {
-      timerDisplay.hide();
-      timerDisplay.removeClass("timer-warning");
+      timerDisplay.style.display = "none";
+      timerDisplay.classList.remove("timer-warning");
     }, 5000);
   }
 
@@ -186,14 +189,13 @@ $(document).ready(function () {
     }
 
     const killfeed = $("#killfeed");
-    const entry = $(
-      `<div class="killfeed-entry"><span class="killfeed-killer">${escapeHtml(killer)}</span> <span class="killfeed-verb">killed</span> <span class="killfeed-victim">${escapeHtml(victim)}</span></div>`,
-    );
-
-    killfeed.append(entry);
+    const entry = document.createElement("div");
+    entry.className = "killfeed-entry";
+    entry.innerHTML = `<span class="killfeed-killer">${escapeHtml(killer)}</span> <span class="killfeed-verb">killed</span> <span class="killfeed-victim">${escapeHtml(victim)}</span>`;
+    killfeed.appendChild(entry);
 
     setTimeout(() => {
-      entry.addClass("fade-out");
+      entry.classList.add("fade-out");
       setTimeout(() => entry.remove(), 250);
     }, killfeedLifetimeMs);
   }
@@ -208,40 +210,37 @@ $(document).ready(function () {
     }).catch(() => {});
   }
 
-  $("#final-scoreboard-close").on("click", function () {
+  $("#final-scoreboard-close").addEventListener("click", function () {
     closeFinalScoreboard();
   });
 
-  $(document).on("keydown", function (event) {
+  document.addEventListener("keydown", function (event) {
     if (
       event.key === "Escape" &&
-      $("#final-scoreboard-overlay").is(":visible")
+      $("#final-scoreboard-overlay").style.display !== "none"
     ) {
       closeFinalScoreboard();
     }
   });
 
-  // Function to update leaderboard with player data
   function updateLeaderboard(
     leaderboard,
     targetBodySelector = "#leaderboard-body",
   ) {
-    const tbody = $(targetBodySelector);
-    tbody.empty();
+    const tbody = document.querySelector(targetBodySelector);
+    tbody.innerHTML = "";
 
     if (!leaderboard || leaderboard.length === 0) {
-      tbody.append(
-        `<tr><td colspan="6" class="no-data">${escapeHtml(
-          translations.noPlayers,
-        )}</td></tr>`,
-      );
+      const row = document.createElement("tr");
+      row.innerHTML = `<td colspan="6" class="no-data">${escapeHtml(
+        translations.noPlayers,
+      )}</td>`;
+      tbody.appendChild(row);
       return;
     }
 
-    // Check if any player has a team (to determine if teams mode is active)
     const teamsMode = leaderboard.some((player) => player.team);
 
-    // Sort leaderboard by kills (descending), then by K/D ratio
     leaderboard.sort((a, b) => {
       if (b.kills !== a.kills) {
         return b.kills - a.kills;
@@ -249,7 +248,6 @@ $(document).ready(function () {
       return b.kd - a.kd;
     });
 
-    // Generate leaderboard rows
     leaderboard.forEach((player, index) => {
       const rank = index + 1;
       const kd =
@@ -262,7 +260,6 @@ $(document).ready(function () {
       let teamDisplay = "";
       let teamClass = "";
 
-      // Add special styling for top 3 players
       if (rank === 1) {
         rowClass = "top-player";
         rankClass = "gold";
@@ -274,7 +271,6 @@ $(document).ready(function () {
         rankClass = "bronze";
       }
 
-      // Handle team display
       if (teamsMode) {
         if (player.team === "team1") {
           teamDisplay = `<span class="team-badge team-blue">${escapeHtml(
@@ -299,18 +295,17 @@ $(document).ready(function () {
         )}</span>`;
       }
 
-      const row = `
-                <tr class="${rowClass}">
-                    <td class="rank ${rankClass}">#${rank}</td>
-                    <td class="player-name">${escapeHtml(player.name)}</td>
-                    <td class="team">${teamDisplay}</td>
-                    <td class="kills">${player.kills}</td>
-                    <td class="deaths">${player.deaths}</td>
-                    <td class="kd">${kd}</td>
-                </tr>
+      const row = document.createElement("tr");
+      row.className = rowClass;
+      row.innerHTML = `
+                <td class="rank ${rankClass}">#${rank}</td>
+                <td class="player-name">${escapeHtml(player.name)}</td>
+                <td class="team">${teamDisplay}</td>
+                <td class="kills">${player.kills}</td>
+                <td class="deaths">${player.deaths}</td>
+                <td class="kd">${kd}</td>
             `;
-
-      tbody.append(row);
+      tbody.appendChild(row);
     });
 
     if (teamsMode) {
@@ -321,36 +316,47 @@ $(document).ready(function () {
         ? leaderboard[0].team2Kills
         : 0;
 
-      tbody.append(`
+      tbody.insertAdjacentHTML(
+        "beforeend",
+        `
                 <tr class="team-summary-block-title">
                     <td colspan="6" class="team-summary-block-title-cell">${escapeHtml(translations.teamTotals)}</td>
                 </tr>
-            `);
+            `,
+      );
 
-      tbody.append(`
+      tbody.insertAdjacentHTML(
+        "beforeend",
+        `
                 <tr class="team-summary-header-row">
                     <td colspan="3" class="team-summary-header-cell">${escapeHtml(translations.columnTeam)}</td>
                     <td colspan="3" class="team-summary-header-cell">${escapeHtml(translations.totalKills)}</td>
                 </tr>
-            `);
+            `,
+      );
 
-      tbody.append(`
+      tbody.insertAdjacentHTML(
+        "beforeend",
+        `
                 <tr class="team-summary-row team-blue-summary">
                     <td colspan="3" class="team-summary-label">${escapeHtml(translations.team1)}</td>
                     <td colspan="3" class="team-summary-value">${team1Kills}</td>
                 </tr>
-            `);
+            `,
+      );
 
-      tbody.append(`
+      tbody.insertAdjacentHTML(
+        "beforeend",
+        `
                 <tr class="team-summary-row team-red-summary">
                     <td colspan="3" class="team-summary-label">${escapeHtml(translations.team2)}</td>
                     <td colspan="3" class="team-summary-value">${team2Kills}</td>
                 </tr>
-            `);
+            `,
+      );
     }
   }
 
-  // Escape dynamic text content before injecting into HTML templates.
   function escapeHtml(text) {
     text = String(text ?? "");
     const map = {

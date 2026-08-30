@@ -173,15 +173,28 @@ function Inventory.RemoveDisallowedArenaItems()
 end
 
 function Inventory.StartArenaItemLock()
-    Citizen.CreateThread(function()
+    if Config.InventorySystem == 'ox_inventory' then
+        RegisterNetEvent('ox_inventory:updateSlots', function()
+            if State.isInArena then
+                Inventory.RemoveDisallowedArenaItems()
+            end
+        end)
+    end
+
+    CreateThread(function()
         while true do
             local interval = Config.ArenaItemLockIntervalMs or 1500
-            if interval < 250 then
+            if not State.isInArena then
+                interval = 3000
+            elseif interval < 250 then
                 interval = 250
             end
 
             Wait(interval)
-            Inventory.RemoveDisallowedArenaItems()
+
+            if State.isInArena then
+                Inventory.RemoveDisallowedArenaItems()
+            end
         end
     end)
 end

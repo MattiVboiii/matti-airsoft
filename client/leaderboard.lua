@@ -92,18 +92,16 @@ function Leaderboard.Toggle()
 end
 
 function Leaderboard.HandleKeybind()
-    Citizen.CreateThread(function()
-        while true do
-            local waitTime = 500
+    if not Config.LeaderboardEnabled then
+        return
+    end
 
-            if Config.LeaderboardEnabled and State.isInArena then
-                waitTime = 0
-                if IsControlJustPressed(0, Config.LeaderboardKey) then
-                    Leaderboard.Toggle()
-                end
-            end
-
-            Wait(waitTime)
-        end
-    end)
+    lib.addKeybind({
+        name = 'matti_airsoft_leaderboard',
+        description = 'Toggle airsoft leaderboard',
+        defaultKey = 'F5',
+        onPressed = function()
+            Leaderboard.Toggle()
+        end,
+    })
 end

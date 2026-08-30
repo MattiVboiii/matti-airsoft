@@ -1,4 +1,4 @@
-local MAX_ITEM_EVENT_AMOUNT = Config.MaxItemEventAmount or 2000000000
+local MAX_ITEM_EVENT_AMOUNT = Utils.GetMaxItemEventAmount()
 
 local function ValidateItemRequest(itemName, amount)
     if type(itemName) ~= 'string' or itemName == '' then
@@ -175,6 +175,7 @@ end)
 
 RegisterNetEvent('matti-airsoft:leaveLobby', function()
     ResetPlayerSecurityState(source)
+    MatchState.ClearPlayer(source)
     Lobby.Leave(source)
 end)
 
@@ -257,7 +258,32 @@ RegisterNetEvent('matti-airsoft:setPlayerTeam', function(team)
     TriggerClientEvent('matti-airsoft:sendNotification', source, Lang:t('notifications.team_selected') .. ' ' .. (team == 'team1' and Lang:t('menu.team1') or Lang:t('menu.team2')), 'success')
 end)
 
+local function CanPlayerModifyInventory(playerId)
+    if Data.loadoutGrantState and Data.loadoutGrantState[playerId] then
+        return true
+    end
+
+    if GetPlayerArenaLobby(playerId) then
+        return true
+    end
+
+    if Data.arenaStats[playerId] and Utils.IsPlayerInArena(playerId) then
+        return true
+    end
+
+    return false
+end
+
 RegisterNetEvent('matti-airsoft:playerEnteredArena', function()
+    if not Utils.CheckRateLimit(source, 'playerEnteredArena') then
+        return
+    end
+
+    if not Utils.IsPlayerInArena(source) then
+        Utils.LogSuspiciousActivity(source, 'playerEnteredArena', 'outside_arena')
+        return
+    end
+
     local lobbyId = Data.playerLobbies[source]
     if not lobbyId or Data.activeLobbyInArena ~= lobbyId then
         return
@@ -266,20 +292,53 @@ RegisterNetEvent('matti-airsoft:playerEnteredArena', function()
 end)
 
 RegisterNetEvent('matti-airsoft:playerLeftArena', function()
+    if not Utils.CheckRateLimit(source, 'playerLeftArena') then
+        return
+    end
+
     Data.recentAttackers[source] = nil
     Leaderboard.RemovePlayer(source)
-    Lobby.Leave(source)
+end)
+
+RegisterNetEvent('matti-airsoft:exitMatch', function()
+    MatchState.ClearPlayer(source)
 end)
 
 RegisterNetEvent('matti-airsoft:registerRecentAttacker', function(attackerId)
     local victimId = source
+
+    if not Utils.CheckRateLimit(victimId, 'registerRecentAttacker') then
+        return
+    end
+
     local attacker = tonumber(attackerId)
 
     if not attacker or attacker == victimId then
         return
     end
 
-    if not Data.arenaStats[attacker] then
+    if not Data.arenaStats[attacker] or not Data.arenaStats[victimId] then
+        return
+    end
+
+    if not Player(attacker).state.airsoftInMatch then
+        return
+    end
+
+    if not Utils.IsPlayerInArena(victimId) or not Utils.IsPlayerInArena(attacker) then
+        Utils.LogSuspiciousActivity(victimId, 'registerRecentAttacker', 'outside_arena')
+        return
+    end
+
+    local victimCoords = Utils.GetPlayerCoords(victimId)
+    local attackerCoords = Utils.GetPlayerCoords(attacker)
+    if not victimCoords or not attackerCoords then
+        return
+    end
+
+    local maxDistance = Utils.GetKillerFallbackDistance()
+    if #(victimCoords - attackerCoords) > maxDistance then
+        Utils.LogSuspiciousActivity(victimId, 'registerRecentAttacker', 'attacker_too_far')
         return
     end
 
@@ -293,24 +352,43 @@ RegisterNetEvent('matti-airsoft:registerRecentAttacker', function(attackerId)
     end
 end)
 
-RegisterNetEvent('matti-airsoft:playerWasHit', function(killerId)
+RegisterNetEvent('matti-airsoft:playerWasHit', function(shouldCreditKiller)
     local victimId = source
+
+    if not Utils.CheckRateLimit(victimId, 'playerWasHit') then
+        return
+    end
 
     if not Data.arenaStats[victimId] then
         return
     end
 
-    local normalizedKillerId = tonumber(killerId)
+    if not Utils.IsPlayerInArena(victimId) then
+        Utils.LogSuspiciousActivity(victimId, 'playerWasHit', 'outside_arena')
+        return
+    end
 
-    if not normalizedKillerId or normalizedKillerId == victimId or not Data.arenaStats[normalizedKillerId] then
-        normalizedKillerId = Utils.GetRecentAttacker(victimId)
+    local killerId = Utils.GetRecentAttacker(victimId)
+    local creditKiller = shouldCreditKiller == true
+
+    if not killerId and creditKiller then
+        killerId = Utils.GetClosestArenaPlayer(victimId, Utils.GetKillerFallbackDistance())
+    end
+
+    if killerId and (killerId == victimId or not Data.arenaStats[killerId]) then
+        killerId = nil
+        creditKiller = false
+    end
+
+    if not killerId then
+        creditKiller = false
     end
 
     if Config.Debug then
-        print(' Processing hit victim=' .. victimId .. ' killer=' .. tostring(normalizedKillerId) .. ' raw=' .. tostring(killerId))
+        print(' Processing hit victim=' .. victimId .. ' killer=' .. tostring(killerId) .. ' credited=' .. tostring(creditKiller))
     end
 
-    Leaderboard.RecordHit(victimId, normalizedKillerId)
+    Leaderboard.RecordHit(victimId, killerId, creditKiller)
 
     if Config.RefillLoadoutAmmoOnRespawn then
         local lobby = GetPlayerArenaLobby(victimId)
@@ -324,6 +402,11 @@ end)
 
 RegisterServerEvent('matti-airsoft:revivePlayer', function()
     if not Data.arenaStats[source] then
+        return
+    end
+
+    if not Utils.IsPlayerInArena(source) then
+        Utils.LogSuspiciousActivity(source, 'revivePlayer', 'outside_arena')
         return
     end
 
@@ -346,6 +429,10 @@ RegisterServerEvent('matti-airsoft:revivePlayer', function()
 end)
 
 RegisterServerEvent('matti-airsoft:giveWeapon', function(weaponName)
+    if not Utils.CheckRateLimit(source, 'giveWeapon') then
+        return
+    end
+
     if type(weaponName) ~= 'string' or weaponName == '' then
         return
     end
@@ -364,6 +451,10 @@ RegisterServerEvent('matti-airsoft:giveWeapon', function(weaponName)
 end)
 
 RegisterServerEvent('matti-airsoft:giveItem', function(itemName, amount, metadata, slot)
+    if not Utils.CheckRateLimit(source, 'giveItem') then
+        return
+    end
+
     local isValidRequest, normalizedItemName, normalizedAmount = ValidateItemRequest(itemName, amount)
     if not isValidRequest then
         return
@@ -408,6 +499,11 @@ RegisterNetEvent('matti-airsoft:restoreItems', function()
 end)
 
 RegisterServerEvent('matti-airsoft:removeWeapon', function(weaponName)
+    if not CanPlayerModifyInventory(source) then
+        Utils.LogSuspiciousActivity(source, 'removeWeapon', 'invalid_context')
+        return
+    end
+
     if type(weaponName) ~= 'string' or weaponName == '' then
         return
     end
@@ -419,6 +515,15 @@ RegisterServerEvent('matti-airsoft:removeWeapon', function(weaponName)
 end)
 
 RegisterServerEvent('matti-airsoft:removeItem', function(itemName, amount, slot, metadata)
+    if not Utils.CheckRateLimit(source, 'removeItem') then
+        return
+    end
+
+    if not CanPlayerModifyInventory(source) then
+        Utils.LogSuspiciousActivity(source, 'removeItem', 'invalid_context')
+        return
+    end
+
     local isValidRequest, _, normalizedAmount = ValidateItemRequest(itemName, amount)
     if not isValidRequest then
         return

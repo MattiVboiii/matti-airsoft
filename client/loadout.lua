@@ -48,21 +48,20 @@ function Loadout.Handle(loadout)
 end
 
 function Loadout.Remove()
-    if State.currentLoadout == nil then
+    local loadout = State.currentLoadout
+    if loadout == nil then
         return
     end
 
-    for _, loadout in ipairs(Config.Loadouts) do
-        for _, weapon in ipairs(loadout.weapons) do
-            TriggerServerEvent('matti-airsoft:removeWeapon', weapon.name)
-        end
+    for _, weapon in ipairs(loadout.weapons or {}) do
+        TriggerServerEvent('matti-airsoft:removeWeapon', weapon.name)
+    end
 
-        for _, ammo in ipairs(loadout.ammo or {}) do
-            local currentAmmo = GetCurrentAmmoCount(ammo.name)
+    for _, ammo in ipairs(loadout.ammo or {}) do
+        local currentAmmo = GetCurrentAmmoCount(ammo.name)
 
-            if currentAmmo > 0 then
-                TriggerServerEvent('matti-airsoft:removeItem', ammo.name, currentAmmo)
-            end
+        if currentAmmo > 0 then
+            TriggerServerEvent('matti-airsoft:removeItem', ammo.name, currentAmmo)
         end
     end
 
