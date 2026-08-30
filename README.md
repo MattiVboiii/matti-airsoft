@@ -184,6 +184,8 @@ Using ps-dispatch? Prevent false alerts by adding a NoDispatchZone:
 
 - I currently use QBox for testing and development, I'm mostly too lazy to test on other frameworks. So I'm sorry in advance if there are any issues with other frameworks, but I will try my best to fix them if they come up.
 
+- Tests are done locally on 2 clients, meaning gameplay is only tested for 2 people. If you encounter any bugs/glitches/cheats with more people, let me know ASAP!
+
 - Keep in mind that I made this script for fun and to learn, not to create a perfect product. If you want to contribute or help out, feel free to do so, PR's are always welcome!
 
 - The V2 of this script is considered feature-complete in terms of major overhauls. Future updates will focus on minor features, bug fixes, and performance improvements.
